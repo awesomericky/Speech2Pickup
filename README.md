@@ -1,2 +1,2 @@
 # InteractivePickup
-Interactive Text2Pickup Network for Natural Language based Human-Robot Collaboration
+Interactive Speech2Pickup Network for Speech based Human-Robot Collaboration

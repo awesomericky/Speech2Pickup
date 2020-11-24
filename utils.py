@@ -5,30 +5,30 @@ from skimage.transform import resize
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from os import listdir, remove
-from os.path import isfile, join
-from google_drive_downloader import GoogleDriveDownloader as gdd
+from os import listdir, remove, makedirs
+from os.path import join, isdir, isfile
+# from google_drive_downloader import GoogleDriveDownloader as gdd
 import gzip
-import gensim
+# import gensim
 
-def load_w2v(w2v_path):
-    if isfile(w2v_path) == False:
-        print "Start downloading Google Word2Vec data"
-        gdd.download_file_from_google_drive(file_id='0B7XkCwpI5KDYNlNUTTlSS21pQmM',
-                                            dest_path=w2v_path+'.gz',
-                                            unzip=False)
-        inF = gzip.open(w2v_path+'.gz', 'rb')
-        outF = open(w2v_path, 'wb')
-        outF.write( inF.read() )
-        inF.close()
-        outF.close()
+# def load_w2v(w2v_path):
+#     if isfile(w2v_path) == False:
+#         print("Start downloading Google Word2Vec data")
+#         gdd.download_file_from_google_drive(file_id='0B7XkCwpI5KDYNlNUTTlSS21pQmM',
+#                                             dest_path=w2v_path+'.gz',
+#                                             unzip=False)
+#         inF = gzip.open(w2v_path+'.gz', 'rb')
+#         outF = open(w2v_path, 'wb')
+#         outF.write( inF.read() )
+#         inF.close()
+#         outF.close()
 
-        remove(w2v_path+'.gz')
-    print "Start loading Google Word2Vec data"
-    w2v_model = gensim.models.KeyedVectors.load_word2vec_format(w2v_path, binary=True)
-    print "Finished loading Google Word2Vec data"
+#         remove(w2v_path+'.gz')
+#     print("Start loading Google Word2Vec data")
+#     w2v_model = gensim.models.KeyedVectors.load_word2vec_format(w2v_path, binary=True)
+#     print("Finished loading Google Word2Vec data")
 
-    return w2v_model
+#     return w2v_model
 
 def QGN_organize_data(img_path):
     img_resize = 64
@@ -84,7 +84,7 @@ def divide_img_idx(img_idx, num_data):
         train_img_idx = npzfile['arr_0']
         test_img_idx = npzfile['arr_1']
                                
-    print 'Test image index : %s' % (test_img_idx)
+    print('Test image index : %s' % (test_img_idx))
 
     return test_img_idx, train_img_idx
     
@@ -170,7 +170,7 @@ def load_test_script(curr_test_input, w2v_model, dim_sentence, max_step_sentence
             curr_embed_input[0, :, i] = w2v_model[word]
     curr_seq_len[0, 0] = len(curr_words)
 
-    print "Ready the test input script"
+    print("Ready the test input script")
     
     return curr_embed_input, curr_seq_len
 
@@ -220,3 +220,28 @@ def plot_HGN_result(curr_test_input, curr_test_img, mean_of_esti, uncertainty, b
     cax4 = divider4.append_axes("right", size="5%", pad=0.05)
     plt.colorbar(plot4, ax=ax4, cax=cax4)
  
+ ############################
+ ## Added to original file ##
+
+def read_script_files(script_dir_path):
+    script_files = [f for f in listdir(script_dir_path) if isfile(join(script_dir_path, f))]
+    script_files.sort()
+    return script_files
+
+def read_script_file_data(script_dir_path, script_file):
+    curr_file = open(join(script_dir_path, script_file), 'r')
+    curr_file_lines = curr_file.readlines()
+    for i in range(len(curr_file_lines)):
+        words = curr_file_lines[i].split()[2: ]
+        curr_file_lines[i] = ' '.join(words)
+    return curr_file_lines
+
+def read_audio_files(audio_dir_path):
+    audio_files = [f for f in listdir(audio_dir_path) if isfile(join(audio_dir_path, f))]
+    audio_files.sort()
+    return audio_files
+
+def data_shuffle(relative_data_directory_path):
+    data_files = read_script_files(relative_data_directory_path)
+    random.shuffle(data_files)
+    return data_files

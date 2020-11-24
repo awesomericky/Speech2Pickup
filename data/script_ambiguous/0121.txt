@@ -1,5 +1,0 @@
-pick up the left green block
-pick up the block which color is green
-pick up the left block which color is green
-pick up the green block
-pick up the upper block

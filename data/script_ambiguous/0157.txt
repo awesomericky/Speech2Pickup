@@ -1,5 +1,0 @@
-pick up the right block
-pick up the block on the right
-pick up the red block
-pick up the rightmost block
-pick up the block which color is red

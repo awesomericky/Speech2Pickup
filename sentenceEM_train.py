@@ -36,7 +36,7 @@ with tf.device('/device:GPU:0'):
 ## Model train ##
 #################
 
-relative_data_directory_path = '/content/drive/MyDrive/Speech2Pickup/data_v2.2'
+relative_data_directory_path = '/content/drive/MyDrive/Speech2Pickup/data_v2.2_single_channel'
 wandb.init(project='Speech2Pickup', name='sentenceEM_lr:0.001')
 model_save_freq = 5
 for i in range(epochs):

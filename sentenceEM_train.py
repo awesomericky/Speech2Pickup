@@ -12,24 +12,24 @@ import wandb
 #####################
 
 batch_size = 64; seed = 1; lr = 0.001; epochs = 300; loss_weights={'linguistic': 1, 'acoustic': 0.005}
-n_mels = 80
+n_mels = 40
 time_steps = 303
+word_dic_size = 43
 training_state = True
 input_shapes = (batch_size, n_mels, time_steps)
-encoder_args = {'num_stacks': 3, 'num_channels':[80, 80, 80, 80, 80, 80], 'kernel_size':3, 'dropout_rate': 0.2, 'return_type': 'end'}
-linguistic_decoder_args = {'decoder_type': 'linguistic', 'num_levels':8, 'num_channels': 42, 'kernel_size': [2, 2], 'padding': 'causal',
-                            'upsample_size': {2: 5, 3: 2, 0:1}, 'dropout_rate': 0.2, 'output_shape': (batch_size, 42, 303)}
-acoustic_decoder_args = {'decoder_type': 'acoustic', 'num_levels':8, 'num_channels': 80, 'kernel_size': [2, 2], 'padding': 'causal',
-                            'upsample_size': {2: 5, 3: 2, 0:1}, 'dropout_rate': 0.2, 'output_shape': (batch_size, 80, 303)}
+encoder_args = {'num_stacks': 3, 'num_channels':[n_mels for i in range(6)], 'kernel_size':3, 'dropout_rate': 0.2, 'return_type': 'end'}
+linguistic_decoder_args = {'decoder_type': 'linguistic', 'num_levels':8, 'num_channels': word_dic_size, 'kernel_size': [2, 2], 'padding': 'causal',
+                            'upsample_size': {2: 5, 3: 2, 0:1}, 'dropout_rate': 0.2, 'output_shape': (batch_size, word_dic_size, time_steps)}
+acoustic_decoder_args = {'decoder_type': 'acoustic', 'num_levels':8, 'num_channels': n_mels, 'kernel_size': [2, 2], 'padding': 'causal',
+                            'upsample_size': {2: 5, 3: 2, 0:1}, 'dropout_rate': 0.2, 'output_shape': (batch_size, n_mels, time_steps)}
 
 with tf.device('/device:GPU:0'):
   sen_em_model = sentenceEM(encoder_args=encoder_args, linguistic_decoder_args=linguistic_decoder_args, acoustic_decoder_args=acoustic_decoder_args,
-                              input_shapes=input_shapes, seed=seed, training_state=training_state)
-  # sen_em_model.build(input_shapes)
-  sen_em_model.build_graph()
+                            input_shapes=input_shapes, seed=seed, training_state=training_state)
+  sen_em_model.build_seperate_graph()
+  sen_em_model.build_total_graph()
   sen_em_model.model_compile(lr=lr, loss_weights=loss_weights)
 # sen_em_model.model_visualize()
-
 
 
 #################
@@ -106,7 +106,8 @@ for i in range(epochs):
         # Model save
         if (i+1) % model_save_freq == 0:
           print('Finished training {} epochs'.format(i+1))
-          sen_em_model.model.save_weights(filepath='/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/sentenceEM_model', overwrite=True)
+          sen_em_model.model.save_weights(filepath='/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/total_model/sentenceEM_total_model', overwrite=True)
+          sen_em_model.encoder_model.save_weights(filepath='/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/encoder_model/sentenceEM_encoder_model', overwrite=True)
           print('Model saving complete!')
     except KeyboardInterrupt:
         pass

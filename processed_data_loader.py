@@ -92,6 +92,7 @@ def make_word_dictionary(relative_script_directory_path):
             total_words.update(set(curr_file_line.split()))
     total_words = list(total_words)
     total_words.append("")
+    total_words.append("OOV")
     total_words.sort()
 
     # One-hot encoding

@@ -9,7 +9,7 @@ class fused_model(object):
         print('Fused Model Created')
         
     def vgg_with_rnn(self, rnn_feature, init_image, keep_prob, n_classes):         
-        print '=======VGG NET with RNN======='
+        print('=======VGG NET with RNN=======')
         with vs.variable_scope("QGN/cnn"):
             self.conv_1_1 = tf.layers.conv2d(init_image, filters=16, kernel_size=3, padding='same')
             self.pool_1 = tf.layers.max_pooling2d(tf.nn.relu(self.conv_1_1), pool_size=2, strides=2)

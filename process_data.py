@@ -93,11 +93,20 @@ def audio_length_equalize_and_save(relative_data_directory_path, relative_save_d
     else:
         raise ValueError('Unavailable data directory path for audio zero padding')
 
-def return_mel_spec(sampled_audio, sample_rate, n_fft, hop_length, win_length, n_mels, window='hann', log_scale=True):
+def return_mel_spec_single_channel(sampled_audio, sample_rate, n_fft, hop_length, win_length, n_mels, window='hann', log_scale=True):
     audio_mel_spec = librosa.feature.melspectrogram(y=sampled_audio, sr=sample_rate, n_fft=n_fft, hop_length=hop_length, win_length=win_length, window=window, n_mels=n_mels)
     if log_scale:
         audio_mel_spec = librosa.power_to_db(audio_mel_spec)
     return audio_mel_spec
+
+def return_mel_spec_three_channel(sampled_audio, sample_rate, n_fft, hop_length, win_length, n_mels, window='hann', log_scale=True):
+    audio_mel_spec = librosa.feature.melspectrogram(y=sampled_audio, sr=sample_rate, n_fft=n_fft, hop_length=hop_length, win_length=win_length, window=window, n_mels=n_mels)
+    if log_scale:
+        audio_mel_spec = librosa.power_to_db(audio_mel_spec)
+    mel_first_derivative = librosa.feature.delta(audio_mel_spec, width=5, axis=-1, mode='interp')
+    mel_second_derivative = librosa.feature.delta(mel_first_derivative, width=5, axis=-1, mode='interp')
+    audio_mel_feature = np.stack((audio_mel_spec, mel_first_derivative, mel_second_derivative), axis=-1)
+    return audio_mel_feature
 
 def word_interval_continualize(len_mel_spec, sample_rate, hop_length, word_time_interval, word_dictionary, word_dictionary_size):
     frame_time_interval = hop_length/float(sample_rate)
@@ -123,7 +132,8 @@ def make_word_dictionary(relative_script_directory_path):
         for curr_file_line in curr_file_lines:
             total_words.update(set(curr_file_line.split()))
     total_words = list(total_words)
-    total_words.append("")
+    total_words.append("")  # blank
+    total_words.append("OOV")  # Out of vocabulary
     total_words.sort()
 
     # One-hot encoding

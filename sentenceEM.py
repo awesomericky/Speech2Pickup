@@ -41,27 +41,48 @@ class sentenceEM(tf.keras.Model):
     
     def call(self, x):
         embedded_outputs = self.input_reshape_block(x)
-        print(embedded_outputs.shape)
         embedded_outputs = self.encoder(embedded_outputs)
         embedded_outputs = kb.expand_dims(embedded_outputs, axis=1)
-        print(embedded_outputs.shape)
         linguistic_outputs = self.linguistic_decoder(embedded_outputs)
         acoustic_outputs = self.acoustic_decoder(embedded_outputs)
-
         return linguistic_outputs, acoustic_outputs
-
-    def build_graph(self):
-        x = tf.keras.Input(batch_shape=self.input_shapes)
-        linguistic_outputs, acoustic_outputs = self.call(x)
-
-        self.model = tf.keras.Model(inputs=x, outputs=[linguistic_outputs, acoustic_outputs])
     
+    def encoder_call(self, x):
+        embedded_outputs = self.input_reshape_block(x)
+        embedded_outputs = self.encoder(embedded_outputs)
+        return embedded_outputs
+    
+    def decoder_call(self, x):
+        embedded_outputs = kb.expand_dims(x, axis=1)
+        linguistic_outputs = self.linguistic_decoder(embedded_outputs)
+        acoustic_outputs = self.acoustic_decoder(embedded_outputs)
+        return linguistic_outputs, acoustic_outputs
+    
+    def build_seperate_graph(self):
+        # Encoder graph
+        x = tf.keras.Input(batch_shape=self.input_shapes)
+        embedded_outputs = self.encoder_call(x)
+        self.embedded_outputs_shape = embedded_outputs.shape
+        self.encoder_model = tf.keras.Model(inputs=x, outputs=embedded_outputs)
+
+        # Decoder graph
+        embeddings = tf.keras.Input(batch_shape=self.embedded_outputs_shape)
+        linguistic_outputs, acoustic_outputs = self.decoder_call(embeddings)
+        self.decoder_model = tf.keras.Model(inputs=embeddings, outputs=[linguistic_outputs, acoustic_outputs])
+    
+    def build_total_graph(self):
+        x = tf.keras.Input(batch_shape=self.input_shapes)
+        y = self.encoder_model(x)
+        l_y, a_y = self.decoder_model(y)
+        self.model = tf.keras.Model(inputs=x, outputs=[l_y, a_y])
+
     def model_visualize(self):
         self.model.summary()
-        plot_model(self.model, to_file='/content/drive/MyDrive/Speech2Pickup/sentenceEM.png')
-    
+        plot_model(self.model, to_file='/home/awesomericky/Lab_intern/Prof_Oh/Code/Speech2Pickup/image/sentenceEM.png')
+
     def model_compile(self, lr, loss_weights):
-        self.model.compile(optimizer='adam', loss=[self.linguistic_loss_function, self.acoustic_loss_function], loss_weights=[loss_weights['linguistic'], loss_weights['acoustic']])
+        optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
+        self.model.compile(optimizer=optimizer, loss=[self.linguistic_loss_function, self.acoustic_loss_function], loss_weights=[loss_weights['linguistic'], loss_weights['acoustic']])
 
     def model_train(self, X_train, Y_linguistic_train, Y_acoustic_train, batch_size):
         hist = History()
@@ -82,6 +103,33 @@ class sentenceEM(tf.keras.Model):
         loss = kb.mean(loss, keepdims=False)
         return loss
 
+class sentenceEM_encoder(tf.keras.Model):
+    def __init__(self, encoder_args, input_shapes, seed, training_state):
+        """
+        1) encoder_args: 
+        num_stacks, num_channels, kernel_size, dropout_rate, return_type, seed
+        """
+        super(sentenceEM_encoder, self).__init__()
+        self.input_shapes = input_shapes
+        self.input_reshape_block = layers.Permute((2, 1))
+        self.encoder = TempConvnet(num_stacks=encoder_args['num_stacks'], num_channels=encoder_args['num_channels'],
+                                        kernel_size=encoder_args['kernel_size'], dropout_rate=encoder_args['dropout_rate'],
+                                        return_type=encoder_args['return_type'], seed=seed, training_state=training_state)
+    
+    def call(self, x):
+        embedded_outputs = self.input_reshape_block(x)
+        embedded_outputs = self.encoder(embedded_outputs)
+        return embedded_outputs
+
+    def build_graph(self):
+        x = tf.keras.Input(batch_shape=self.input_shapes)
+        embedded_outputs = self.call(x)
+        self.embedded_outputs_shape = embedded_outputs.shape
+        self.encoder_model = tf.keras.Model(inputs=x, outputs=embedded_outputs)
+    
+    def encoder_model_compile(self, lr):
+        optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
+        self.encoder_model.compile(optimizer=optimizer)
 
 class History(Callback):
     def on_train_begin(self,logs={}):

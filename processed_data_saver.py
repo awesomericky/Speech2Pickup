@@ -25,7 +25,7 @@ import numpy as np
 import pickle
 import textgrid
 from utils import read_audio_files
-from process_data import audio_length_equalize_and_save, return_mel_spec, word_interval_continualize, make_word_dictionary
+from process_data import audio_length_equalize_and_save, return_mel_spec_single_channel, return_mel_spec_three_channel, word_interval_continualize, make_word_dictionary
 from processed_data_loader import load_single_data
 
 def save_data_v1_0(relative_audio_directory_path, sample_sr, relative_save_data_directory_path):
@@ -193,7 +193,9 @@ def save_data_v2_0(relative_audio_directory_path, sr, relative_aligned_data_dire
 def save_data_v2_1(relative_data_directory_path, relative_save_data_directory_path):
     audio_length_equalize_and_save(relative_data_directory_path, relative_save_data_directory_path)
 
-def save_data_v2_2(relative_data_directory_path, relative_script_directory_path, relative_save_data_directory_path):
+def save_data_v2_2(relative_data_directory_path, relative_script_directory_path, relative_save_data_directory_path, word_dic, word_dic_size, mel_feature_type):
+    assert mel_feature_type in ['single', 'three']
+
     # Read data file
     data_files = [f for f in listdir(relative_data_directory_path) if isfile(join(relative_data_directory_path, f))]
     data_files.sort()
@@ -202,15 +204,13 @@ def save_data_v2_2(relative_data_directory_path, relative_script_directory_path,
     n_fft = 2048
     hop_length = int(n_fft/8)
     win_length = int(n_fft/2)
-    n_mels = 80
+    n_mels = 40
     sampled_audios_idx = 0
     sample_rates_idx = 1
     word_time_intervals_idx = 2
     num_total_data_count = 0
 
-    # Set word dictionary
-    word_dic, word_dic_size = make_word_dictionary(relative_script_directory_path)
-
+    # Due to the delay time in google drive, '/data_v2.2' folder should be already prepared in 'Google drive' when running in 'Google Colab'
     # Check directiry to save data
     if not isdir(relative_save_data_directory_path):
         makedirs(relative_save_data_directory_path)
@@ -222,14 +222,20 @@ def save_data_v2_2(relative_data_directory_path, relative_script_directory_path,
         num_data = len(data[0])
         for ii in range(num_data):
             num_total_data_count += 1
-            mel_spec = return_mel_spec(sampled_audio=data[sampled_audios_idx][ii], sample_rate=data[sample_rates_idx][ii], \
-                n_fft=n_fft, hop_length=hop_length, win_length=win_length, n_mels=n_mels)
+
+            if mel_feature_type == 'single':
+                mel_spec = return_mel_spec_single_channel(sampled_audio=data[sampled_audios_idx][ii], sample_rate=data[sample_rates_idx][ii], \
+                    n_fft=n_fft, hop_length=hop_length, win_length=win_length, n_mels=n_mels)
+            elif mel_feature_type == 'three':
+                mel_spec = return_mel_spec_three_channel(sampled_audio=data[sampled_audios_idx][ii], sample_rate=data[sample_rates_idx][ii], \
+                    n_fft=n_fft, hop_length=hop_length, win_length=win_length, n_mels=n_mels)
+            
             word_label = word_interval_continualize(len_mel_spec=mel_spec.shape[1], sample_rate=data[sample_rates_idx][ii], \
                 hop_length=hop_length, word_time_interval=data[word_time_intervals_idx][ii], \
                 word_dictionary=word_dic, word_dictionary_size=word_dic_size)
-            
             save_file_name = relative_save_data_directory_path + '/senEM_preprocessed_{}.npz'.format(num_total_data_count)
             np.savez(save_file_name, mel_spec, word_label)
+        print('Finished processing {} data'.format(num_data))
 
 # # Save data_v1.0
 # relative_save_data_directory_path = './data/data_v1.0'
@@ -251,8 +257,12 @@ def save_data_v2_2(relative_data_directory_path, relative_script_directory_path,
 # relative_save_data_directory_path = './data/data_v2.1'
 # save_data_v2_1(relative_data_directory_path, relative_save_data_directory_path)
 
-# Save data_v2.2
-relative_data_directory_path = './data/data_v2.1'
-relative_script_directory_path = './data/train_script'
-relative_save_data_directory_path = './data/data_v2.2'
-save_data_v2_2(relative_data_directory_path, relative_script_directory_path, relative_save_data_directory_path)
+# # Save data_v2.2_single_channel
+# relative_data_directory_path = '/content/drive/MyDrive/Speech2Pickup/data_v2.1'
+# relative_save_data_directory_path = '/content/drive/MyDrive/Speech2Pickup/data_v2.2_single_channel'
+# save_data_v2_2(relative_data_directory_path, relative_script_directory_path, relative_save_data_directory_path, word_dic, word_dic_size, mel_feature_type='single')
+
+# # Save data_v2.2_three_channel
+# relative_data_directory_path = '/content/drive/MyDrive/Speech2Pickup/data_v2.1'
+# relative_save_data_directory_path = '/content/drive/MyDrive/Speech2Pickup/data_v2.2_three_channel'
+# save_data_v2_2(relative_data_directory_path, relative_script_directory_path, relative_save_data_directory_path, word_dic, word_dic_size, mel_feature_type='three')

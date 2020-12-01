@@ -26,8 +26,8 @@ class sentenceEM(tf.keras.Model):
         self.input_shapes = input_shapes
         self.input_reshape_block = layers.Permute((2, 1))
         self.encoder = TempConvnet(num_stacks=encoder_args['num_stacks'], num_channels=encoder_args['num_channels'],
-                                        kernel_size=encoder_args['kernel_size'], dropout_rate=encoder_args['dropout_rate'],
-                                        return_type=encoder_args['return_type'], seed=seed, training_state=training_state)
+                                    kernel_size=encoder_args['kernel_size'], dropout_rate=encoder_args['dropout_rate'],
+                                    return_type=encoder_args['return_type'], seed=seed, training_state=training_state)
         self.linguistic_decoder = TempConvnet_Decoder(decoder_type=linguistic_decoder_args['decoder_type'], num_levels=linguistic_decoder_args['num_levels'],
                                                         num_channels=linguistic_decoder_args['num_channels'], kernel_size=linguistic_decoder_args['kernel_size'],
                                                         padding=linguistic_decoder_args['padding'], upsample_size=linguistic_decoder_args['upsample_size'],
@@ -113,8 +113,8 @@ class sentenceEM_encoder(tf.keras.Model):
         self.input_shapes = input_shapes
         self.input_reshape_block = layers.Permute((2, 1))
         self.encoder = TempConvnet(num_stacks=encoder_args['num_stacks'], num_channels=encoder_args['num_channels'],
-                                        kernel_size=encoder_args['kernel_size'], dropout_rate=encoder_args['dropout_rate'],
-                                        return_type=encoder_args['return_type'], seed=seed, training_state=training_state)
+                                    kernel_size=encoder_args['kernel_size'], dropout_rate=encoder_args['dropout_rate'],
+                                    return_type=encoder_args['return_type'], seed=seed, training_state=training_state)
     
     def call(self, x):
         embedded_outputs = self.input_reshape_block(x)

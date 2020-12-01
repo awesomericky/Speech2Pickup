@@ -23,13 +23,13 @@ linguistic_decoder_args = {'decoder_type': 'linguistic', 'num_levels':8, 'num_ch
 acoustic_decoder_args = {'decoder_type': 'acoustic', 'num_levels':8, 'num_channels': n_mels, 'kernel_size': [2, 2], 'padding': 'causal',
                             'upsample_size': {2: 5, 3: 2, 0:1}, 'dropout_rate': 0.2, 'output_shape': (batch_size, n_mels, time_steps)}
 
-with tf.device('/device:GPU:0'):
-  sen_em_model = sentenceEM(encoder_args=encoder_args, linguistic_decoder_args=linguistic_decoder_args, acoustic_decoder_args=acoustic_decoder_args,
-                            input_shapes=input_shapes, seed=seed, training_state=training_state)
-  sen_em_model.build_seperate_graph()
-  sen_em_model.build_total_graph()
-  sen_em_model.model_compile(lr=lr, loss_weights=loss_weights)
-# sen_em_model.model_visualize()
+# with tf.device('/device:GPU:0'):
+sen_em_model = sentenceEM(encoder_args=encoder_args, linguistic_decoder_args=linguistic_decoder_args, acoustic_decoder_args=acoustic_decoder_args,
+                          input_shapes=input_shapes, seed=seed, training_state=training_state)
+sen_em_model.build_seperate_graph()
+sen_em_model.build_total_graph()
+sen_em_model.model_compile(lr=lr, loss_weights=loss_weights)
+sen_em_model.model_visualize()
 
 
 #################

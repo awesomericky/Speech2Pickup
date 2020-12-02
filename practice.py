@@ -135,12 +135,14 @@ def mfcc_similairty(relative_file_directory1, file_name1, relative_file_director
     # plt.legend()
     # plt.show()
 
+
+
 # mel
 
 # # MALE
-relative_file_directory = './data/train_speech/Case_en-US_MALE'
-file_name = 'output_0320_28.wav'
-mel_spectogram(relative_file_directory, file_name)
+# relative_file_directory = './data/train_speech/Case_en-US_MALE'
+# file_name = 'output_0320_28.wav'
+# mel_spectogram(relative_file_directory, file_name)
 
 # relative_file_directory = './data/train_speech/Case_en-US_MALE'
 # file_name = 'output_0320_25.wav'

@@ -5,9 +5,9 @@ from plot_model import plot_model
 
 class ResidualBlock(tf.keras.Model):
     def __init__(self, dilation_rate, num_filters, kernel_size, padding, 
-                        dropout_rate, seed, training_state):
+                        dropout_rate, activation, seed, training_state):
         super(ResidualBlock, self).__init__()
-        init = tf.keras.initializers.RandomNormal(mean=0.0, stddev=0.1, seed=1)
+        init = tf.keras.initializers.RandomNormal(mean=0.0, stddev=0.1, seed=seed)
         layers = tf.keras.layers
         assert padding in ['causal', 'same']
 
@@ -17,19 +17,28 @@ class ResidualBlock(tf.keras.Model):
         self.conv1 = layers.Conv1D(filters=num_filters, kernel_size=kernel_size, data_format='channels_last',
                                     dilation_rate=dilation_rate, padding=padding, kernel_initializer=init)
         self.batch1 = layers.BatchNormalization(axis=1, trainable=True)
-        self.ac1 = layers.LeakyReLU(alpha=0.2)
+        if activation == 'leaky-relu':
+            self.ac1 = layers.LeakyReLU(alpha=0.3)
+        else:
+            self.ac1 = layers.Activation(activation)
         self.drop1 = layers.Dropout(rate=dropout_rate)
 
         # Block2
         self.conv2 = layers.Conv1D(filters=num_filters, kernel_size=kernel_size, data_format='channels_last',
                                     dilation_rate=dilation_rate, padding=padding, kernel_initializer=init)
         self.batch2 = layers.BatchNormalization(axis=1, trainable=True)
-        self.ac2 = layers.LeakyReLU(alpha=0.2)
+        if activation == 'leaky-relu':
+            self.ac2 = layers.LeakyReLU(alpha=0.3)
+        else:
+            self.ac2 = layers.Activation(activation)
         self.drop2 = layers.Dropout(rate=dropout_rate)
 
         self.downsample = layers.Conv1D(filters=num_filters, kernel_size=1,
                                         padding='same', kernel_initializer=init)
-        self.ac3 = layers.LeakyReLU(alpha=0.2)
+        if activation == 'leaky-relu':
+            self.ac3 = layers.LeakyReLU(alpha=0.3)
+        else:
+            self.ac3 = layers.Activation(activation)
     
     def call(self, x):
         # Block1
@@ -48,7 +57,7 @@ class ResidualBlock(tf.keras.Model):
         # Match dimention
         if prev_x.shape[-1] != x.shape[-1]:
             prev_x = self.downsample(prev_x)
-        assert prev_x.shape == x.shape
+        assert prev_x.shape[1:] == x.shape[1:]
 
         # skip connection
         return self.ac3(prev_x + x)
@@ -69,7 +78,7 @@ class ResidualBlock(tf.keras.Model):
 
 
 class TemporalBlock(tf.keras.Model):
-    def __init__(self, num_channels, kernel_size, dropout_rate, seed, training_state):
+    def __init__(self, num_channels, kernel_size, dropout_rate, activation, seed, training_state):
         # num_channels is a list contains hidden channel numbers of Conv1D
         # len(num_channels) is number of convolutional layers in one Temporal Block
         super(TemporalBlock, self).__init__()
@@ -80,7 +89,7 @@ class TemporalBlock(tf.keras.Model):
         for i in range(self.num_levels):
             dilation_rate = 2**i
             self.resi_blocks[i] = ResidualBlock(dilation_rate, num_channels[i], kernel_size, padding='causal',
-                            dropout_rate=dropout_rate, seed=seed, training_state=training_state)
+                            dropout_rate=dropout_rate, activation=activation, seed=seed, training_state=training_state)
     
     def call(self, x):
         for i in range(self.num_levels):
@@ -102,18 +111,19 @@ class TemporalBlock(tf.keras.Model):
 # plot_model(model, to_file='temporal_block.png')
 
 class TempConvnet(tf.keras.Model):
-    def __init__(self, num_stacks, num_channels, kernel_size, dropout_rate, return_type, seed, training_state):
+    def __init__(self, num_stacks, num_channels, kernel_size, dropout_rate, activation, return_type, seed, training_state):
         # num_stacks number of Temporal Blocks in Temporal convolutional network
         super(TempConvnet, self).__init__()
         assert isinstance(num_stacks, int)
         assert isinstance(num_channels, list)
+        assert isinstance(activation, str)
         assert return_type in ['whole', 'end']
 
         self.num_stacks = num_stacks
         self.temp_blocks = [0]*self.num_stacks
         self.return_type = return_type
         for i in range(num_stacks):
-            self.temp_blocks[i] = TemporalBlock(num_channels, kernel_size=kernel_size, dropout_rate=dropout_rate, seed=seed, training_state=training_state)
+            self.temp_blocks[i] = TemporalBlock(num_channels, kernel_size=kernel_size, dropout_rate=dropout_rate, activation=activation, seed=seed, training_state=training_state)
     
     def call(self, x):
         for i in range(self.num_stacks):
@@ -139,61 +149,225 @@ class TempConvnet(tf.keras.Model):
 # plot_model(model, to_file='temporal_CNN.png')
 
 class TempConvnet_Decoder(tf.keras.Model):
-    def __init__(self, decoder_type, num_levels, num_channels, kernel_size, padding, upsample_size, dropout_rate, output_shape, seed, training_state):
+    def __init__(self, decoder_type, num_channels, kernel_size, padding, dropout_rate, activation, seed, training_state):
         super(TempConvnet_Decoder, self).__init__()
         assert isinstance(num_channels, int)
         assert isinstance(kernel_size, list)
-        assert isinstance(upsample_size, dict)
+        assert isinstance(activation, str)
         assert padding in ['causal', 'same']
         assert decoder_type in ['linguistic', 'acoustic']
-        assert num_levels == upsample_size[2] + upsample_size[3] + upsample_size[0]
 
-        init = tf.keras.initializers.RandomNormal(mean=0.0, stddev=0.1, seed=1)
+        init = tf.keras.initializers.RandomNormal(mean=0.0, stddev=0.1, seed=seed)
         layers = tf.keras.layers
 
         self.training_state = training_state
 
-        self.size2_upsample_num = upsample_size[2]
-        self.size3_upsample_num = upsample_size[3]
-        self.reshape_conv_num = 1
-        self.num_levels = num_levels
-        self.final_kernel_size = kernel_size[1]
-        self.output_len = output_shape[-1]  ## ex) (num_batch, num_time_steps, dictionary_length)
+        # Block1
+        self.upsample_block1 = layers.UpSampling1D(size=3)
+        self.conv_block1 = layers.Conv1D(filters=num_channels, kernel_size=kernel_size[0], data_format='channels_last',
+                                            padding=padding, kernel_initializer=init)
+        self.batchnorm_block1 = layers.BatchNormalization(axis=-1, trainable=True)
+        self.ac_block1 = layers.Activation(activation) if activation != 'leaky-relu' else layers.LeakyReLU(alpha=0.2)
+        self.drop_block1 = layers.Dropout(rate=dropout_rate)
 
-        self.upsample_blocks = [0]*(num_levels-1)
-        self.conv_blocks = [0]*(num_levels-1)
-        self.batchnorm_blocks = [0]*(num_levels-1)
-        self.ac_blocks = [0]*(num_levels-1)
-        self.drop_blocks = [0]*(num_levels-1)
+        # Extra block0
+        self.conv_block_e0 = layers.Conv1D(filters=num_channels, kernel_size=kernel_size[0], data_format='channels_last',
+                                            padding=padding, kernel_initializer=init)
+        self.batchnorm_block_e0 = layers.BatchNormalization(axis=-1, trainable=True)
+        self.ac_block_e0 = layers.Activation(activation) if activation != 'leaky-relu' else layers.LeakyReLU(alpha=0.2)
+        self.drop_block_e0 = layers.Dropout(rate=dropout_rate)
 
-        for i in range(num_levels-self.size3_upsample_num-self.reshape_conv_num):
-            self.upsample_blocks[i] = layers.UpSampling1D(size=2)
-            self.conv_blocks[i] = layers.Conv1D(filters=num_channels, kernel_size=kernel_size[0], data_format='channels_last',
+        # Block2
+        self.upsample_block2 = layers.UpSampling1D(size=3)
+        self.conv_block2 = layers.Conv1D(filters=num_channels, kernel_size=kernel_size[0], data_format='channels_last',
+                                            padding=padding, kernel_initializer=init)
+        self.batchnorm_block2 = layers.BatchNormalization(axis=-1, trainable=True)
+        self.ac_block2 = layers.Activation(activation) if activation != 'leaky-relu' else layers.LeakyReLU(alpha=0.2)
+        self.drop_block2 = layers.Dropout(rate=dropout_rate)
+
+        # Extra block1
+        self.conv_block_e1 = layers.Conv1D(filters=num_channels, kernel_size=kernel_size[0], data_format='channels_last',
+                                            padding=padding, kernel_initializer=init)
+        self.batchnorm_block_e1 = layers.BatchNormalization(axis=-1, trainable=True)
+        self.ac_block_e1 = layers.Activation(activation) if activation != 'leaky-relu' else layers.LeakyReLU(alpha=0.2)
+        self.drop_block_e1 = layers.Dropout(rate=dropout_rate)
+
+        # Block3
+        self.upsample_block3 = layers.UpSampling1D(size=2)
+        self.conv_block3 = layers.Conv1D(filters=num_channels, kernel_size=kernel_size[0], data_format='channels_last',
+                                            padding=padding, kernel_initializer=init)
+        self.batchnorm_block3 = layers.BatchNormalization(axis=-1, trainable=True)
+        self.ac_block3 = layers.Activation(activation) if activation != 'leaky-relu' else layers.LeakyReLU(alpha=0.2)
+        self.drop_block3 = layers.Dropout(rate=dropout_rate)
+
+        # Extra block2
+        self.conv_block_e2 = layers.Conv1D(filters=num_channels, kernel_size=kernel_size[0], data_format='channels_last',
+                                            padding=padding, kernel_initializer=init)
+        self.batchnorm_block_e2 = layers.BatchNormalization(axis=-1, trainable=True)
+        self.ac_block_e2 = layers.Activation(activation) if activation != 'leaky-relu' else layers.LeakyReLU(alpha=0.2)
+        self.drop_block_e2 = layers.Dropout(rate=dropout_rate)
+
+        # Block4
+        self.conv_block4 = layers.Conv1D(filters=num_channels, kernel_size=kernel_size[0], data_format='channels_last',
+                                            padding='valid', kernel_initializer=init)
+        self.batchnorm_block4 = layers.BatchNormalization(axis=-1, trainable=True)
+        self.ac_block4 = layers.Activation(activation) if activation != 'leaky-relu' else layers.LeakyReLU(alpha=0.2)
+        self.drop_block4 = layers.Dropout(rate=dropout_rate)
+
+        # Extra block3
+        self.conv_block_e3 = layers.Conv1D(filters=num_channels, kernel_size=kernel_size[0], data_format='channels_last',
+                                            padding=padding, kernel_initializer=init)
+        self.batchnorm_block_e3 = layers.BatchNormalization(axis=-1, trainable=True)
+        self.ac_block_e3 = layers.Activation(activation) if activation != 'leaky-relu' else layers.LeakyReLU(alpha=0.2)
+        self.drop_block_e3 = layers.Dropout(rate=dropout_rate)
+
+        # Block5
+        self.upsample_block5 = layers.UpSampling1D(size=2)
+        self.conv_block5 = layers.Conv1D(filters=num_channels, kernel_size=kernel_size[0], data_format='channels_last',
+                                            padding=padding, kernel_initializer=init)
+        self.batchnorm_block5 = layers.BatchNormalization(axis=-1, trainable=True)
+        self.ac_block5 = layers.Activation(activation) if activation != 'leaky-relu' else layers.LeakyReLU(alpha=0.2)
+        self.drop_block5 = layers.Dropout(rate=dropout_rate)
+
+        # Extra block4
+        self.conv_block_e4 = layers.Conv1D(filters=num_channels, kernel_size=kernel_size[0], data_format='channels_last',
+                                            padding=padding, kernel_initializer=init)
+        self.batchnorm_block_e4 = layers.BatchNormalization(axis=-1, trainable=True)
+        self.ac_block_e4 = layers.Activation(activation) if activation != 'leaky-relu' else layers.LeakyReLU(alpha=0.2)
+        self.drop_block_e4 = layers.Dropout(rate=dropout_rate)
+
+        # Block6
+        self.upsample_block6 = layers.UpSampling1D(size=3)
+        self.conv_block6 = layers.Conv1D(filters=num_channels, kernel_size=kernel_size[0], data_format='channels_last',
+                                            padding=padding, kernel_initializer=init)
+        self.batchnorm_block6 = layers.BatchNormalization(axis=-1, trainable=True)
+        self.ac_block6 = layers.Activation(activation) if activation != 'leaky-relu' else layers.LeakyReLU(alpha=0.2)
+        self.drop_block6 = layers.Dropout(rate=dropout_rate)
+
+        # Extra block5
+        self.conv_block_e5 = layers.Conv1D(filters=num_channels, kernel_size=kernel_size[0], data_format='channels_last',
+                                            padding=padding, kernel_initializer=init)
+        self.batchnorm_block_e5 = layers.BatchNormalization(axis=-1, trainable=True)
+        self.ac_block_e5 = layers.Activation(activation) if activation != 'leaky-relu' else layers.LeakyReLU(alpha=0.2)
+        self.drop_block_e5 = layers.Dropout(rate=dropout_rate)
+
+        # Block7
+        self.conv_block7 = layers.Conv1D(filters=num_channels, kernel_size=kernel_size[0], data_format='channels_last',
+                                            padding='valid', kernel_initializer=init)
+        self.batchnorm_block7 = layers.BatchNormalization(axis=-1, trainable=True)
+        self.ac_block7 = layers.Activation(activation) if activation != 'leaky-relu' else layers.LeakyReLU(alpha=0.2)
+        self.drop_block7 = layers.Dropout(rate=dropout_rate)
+
+        # Extra block6
+        self.conv_block_e6 = layers.Conv1D(filters=num_channels, kernel_size=kernel_size[0], data_format='channels_last',
+                                            padding=padding, kernel_initializer=init)
+        self.batchnorm_block_e6 = layers.BatchNormalization(axis=-1, trainable=True)
+        self.ac_block_e6 = layers.Activation(activation) if activation != 'leaky-relu' else layers.LeakyReLU(alpha=0.2)
+        self.drop_block_e6 = layers.Dropout(rate=dropout_rate)
+
+        # Block8
+        self.upsample_block8 = layers.UpSampling1D(size=3)
+        self.conv_block8 = layers.Conv1D(filters=num_channels, kernel_size=kernel_size[0], data_format='channels_last',
+                                            padding=padding, kernel_initializer=init)
+        self.batchnorm_block8 = layers.BatchNormalization(axis=-1, trainable=True)
+        self.ac_block8 = layers.Activation(activation) if activation != 'leaky-relu' else layers.LeakyReLU(alpha=0.2)
+        self.drop_block8 = layers.Dropout(rate=dropout_rate)
+
+        # Extra block7
+        self.conv_block_e7 = layers.Conv1D(filters=num_channels, kernel_size=kernel_size[1], data_format='channels_last',
+                                            padding=padding, kernel_initializer=init)
+        self.batchnorm_block_e7 = layers.BatchNormalization(axis=-1, trainable=True)
+        self.ac_block_e7 = layers.Activation(activation) if activation != 'leaky-relu' else layers.LeakyReLU(alpha=0.2)
+        self.drop_block_e7 = layers.Dropout(rate=dropout_rate)
+
+        # Extra block8
+        self.conv_block_e8 = layers.Conv1D(filters=num_channels, kernel_size=kernel_size[1], data_format='channels_last',
+                                            padding=padding, kernel_initializer=init)
+        self.batchnorm_block_e8 = layers.BatchNormalization(axis=-1, trainable=True)
+        self.ac_block_e8 = layers.Activation(activation) if activation != 'leaky-relu' else layers.LeakyReLU(alpha=0.2)
+        self.drop_block_e8 = layers.Dropout(rate=dropout_rate)
+
+        # Block9 (final block)
+        self.final_conv_block = layers.Conv1D(filters=num_channels, kernel_size=kernel_size[1], data_format='channels_last',
                                                     padding=padding, kernel_initializer=init)
-            self.batchnorm_blocks[i] = layers.BatchNormalization(axis=-1, trainable=True)
-            self.ac_blocks[i] = layers.ReLU() if decoder_type == 'linguistic' else layers.LeakyReLU(alpha=0.2)
-            self.drop_blocks[i] = layers.Dropout(rate=dropout_rate)
-        for i in range(num_levels-self.size3_upsample_num-self.reshape_conv_num, num_levels-self.reshape_conv_num):
-            self.upsample_blocks[i] = layers.UpSampling1D(size=3)
-            self.conv_blocks[i] = layers.Conv1D(filters=num_channels, kernel_size=kernel_size[0], data_format='channels_last',
-                                                    padding=padding, kernel_initializer=init)
-            self.batchnorm_blocks[i] = layers.BatchNormalization(axis=-1, trainable=True)
-            self.ac_blocks[i] = layers.Activation('tanh') if decoder_type == 'linguistic' else layers.LeakyReLU(alpha=0.2)
-            self.drop_blocks[i] = layers.Dropout(rate=dropout_rate)
-        self.final_conv_block = layers.Conv1D(filters=num_channels, kernel_size=self.final_kernel_size, data_format='channels_last',
-                                                    padding='valid', kernel_initializer=init)
-        self.final_ac_block = layers.Softmax(axis=-1) if decoder_type == 'linguistic' else layers.LeakyReLU(alpha=0.2)
+        self.final_ac_block = layers.Softmax(axis=-1)
         self.final_reshape_block = layers.Permute((2, 1))
     
     def call(self, x):
-        for i in range(self.num_levels-1):
-            x = self.upsample_blocks[i](x)
-            x = self.conv_blocks[i](x)
-            x = self.batchnorm_blocks[i](x)
-            x = self.ac_blocks[i](x)
-            x = self.drop_blocks[i](x) if self.training_state else x
-        len_padding = (self.output_len - (x.shape[1] - self.final_kernel_size) - 1)//2
-        x = tf.keras.layers.ZeroPadding1D(padding=(len_padding, len_padding))(x)
+        x = self.upsample_block1(x)
+        x = self.conv_block1(x)
+        x = self.batchnorm_block1(x)
+        x = self.ac_block1(x)
+        x = self.drop_block1(x) if self.training_state else x
+        x = self.conv_block_e0(x)
+        x = self.batchnorm_block_e0(x)
+        x = self.ac_block_e0(x)
+        x = self.drop_block_e0(x) if self.training_state else x
+        x = self.upsample_block2(x)
+        x = self.conv_block2(x)
+        x = self.batchnorm_block2(x)
+        x = self.ac_block2(x)
+        x = self.drop_block2(x) if self.training_state else x
+        x = self.conv_block_e1(x)
+        x = self.batchnorm_block_e1(x)
+        x = self.ac_block_e1(x)
+        x = self.drop_block_e1(x) if self.training_state else x
+        x = self.upsample_block3(x)
+        x = self.conv_block3(x)
+        x = self.batchnorm_block3(x)
+        x = self.ac_block3(x)
+        x = self.drop_block3(x) if self.training_state else x
+        x = self.conv_block_e2(x)
+        x = self.batchnorm_block_e2(x)
+        x = self.ac_block_e2(x)
+        x = self.drop_block_e2(x) if self.training_state else x
+        x = self.conv_block4(x)
+        x = self.batchnorm_block4(x)
+        x = self.ac_block4(x)
+        x = self.drop_block4(x) if self.training_state else x
+        x = self.conv_block_e3(x)
+        x = self.batchnorm_block_e3(x)
+        x = self.ac_block_e3(x)
+        x = self.drop_block_e3(x) if self.training_state else x
+        x = self.upsample_block5(x)
+        x = self.conv_block5(x)
+        x = self.batchnorm_block5(x)
+        x = self.ac_block5(x)
+        x = self.drop_block5(x) if self.training_state else x
+        x = self.conv_block_e4(x)
+        x = self.batchnorm_block_e4(x)
+        x = self.ac_block_e4(x)
+        x = self.drop_block_e4(x) if self.training_state else x
+        x = self.upsample_block6(x)
+        x = self.conv_block6(x)
+        x = self.batchnorm_block6(x)
+        x = self.ac_block6(x)
+        x = self.drop_block6(x) if self.training_state else x
+        x = self.conv_block_e5(x)
+        x = self.batchnorm_block_e5(x)
+        x = self.ac_block_e5(x)
+        x = self.drop_block_e5(x) if self.training_state else x
+        x = self.conv_block7(x)
+        x = self.batchnorm_block7(x)
+        x = self.ac_block7(x)
+        x = self.drop_block7(x) if self.training_state else x
+        x = self.conv_block_e6(x)
+        x = self.batchnorm_block_e6(x)
+        x = self.ac_block_e6(x)
+        x = self.drop_block_e6(x) if self.training_state else x
+        x = self.upsample_block8(x)
+        x = self.conv_block8(x)
+        x = self.batchnorm_block8(x)
+        x = self.ac_block8(x)
+        x = self.drop_block8(x) if self.training_state else x
+        x = self.conv_block_e7(x)
+        x = self.batchnorm_block_e7(x)
+        x = self.ac_block_e7(x)
+        x = self.drop_block_e7(x) if self.training_state else x
+        x = self.conv_block_e8(x)
+        x = self.batchnorm_block_e8(x)
+        x = self.ac_block_e8(x)
+        x = self.drop_block_e8(x) if self.training_state else x
         x = self.final_conv_block(x)
         x = self.final_ac_block(x)
         y = self.final_reshape_block(x)

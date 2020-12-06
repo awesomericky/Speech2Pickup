@@ -2,33 +2,36 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras.backend as kb
 import random
+from os import listdir
 from sentenceEM import sentenceEM
-from utils import data_shuffle
+from utils import read_script_files, read_script_file_data
 from processed_data_loader import load_single_npz_data
+from process_data import make_word_dictionary
 import wandb
 
 #####################
 ## Model configure ##
 #####################
 
-batch_size = 64; seed = 1; lr = 0.001; epochs = 300; loss_weights={'linguistic': 1, 'acoustic': 0.005}
+train_model_number = 12
+batch_size = 36; seed = 1; lr = 0.0005; epochs = 500
 n_mels = 40
 time_steps = 303
 word_dic_size = 43
+dropout_rate = 0.2
 training_state = True
-input_shapes = (batch_size, n_mels, time_steps)
-encoder_args = {'num_stacks': 3, 'num_channels':[n_mels for i in range(6)], 'kernel_size':3, 'dropout_rate': 0.2, 'return_type': 'end'}
-linguistic_decoder_args = {'decoder_type': 'linguistic', 'num_levels':8, 'num_channels': word_dic_size, 'kernel_size': [2, 2], 'padding': 'causal',
-                            'upsample_size': {2: 5, 3: 2, 0:1}, 'dropout_rate': 0.2, 'output_shape': (batch_size, word_dic_size, time_steps)}
-acoustic_decoder_args = {'decoder_type': 'acoustic', 'num_levels':8, 'num_channels': n_mels, 'kernel_size': [2, 2], 'padding': 'causal',
-                            'upsample_size': {2: 5, 3: 2, 0:1}, 'dropout_rate': 0.2, 'output_shape': (batch_size, n_mels, time_steps)}
+input_shapes = (None, n_mels, time_steps)
+encoder_args = {'num_stacks': 3, 'num_channels':[n_mels for i in range(6)], 'kernel_size':3,
+                'dropout_rate': dropout_rate, 'activation': 'leaky-relu', 'return_type': 'end'}
+linguistic_decoder_args = {'decoder_type': 'linguistic', 'num_channels': word_dic_size, 'kernel_size': [2, 2],
+                           'padding': 'same', 'dropout_rate': dropout_rate, 'activation': 'leaky-relu'}
 
-# with tf.device('/device:GPU:0'):
-sen_em_model = sentenceEM(encoder_args=encoder_args, linguistic_decoder_args=linguistic_decoder_args, acoustic_decoder_args=acoustic_decoder_args,
-                          input_shapes=input_shapes, seed=seed, training_state=training_state)
-sen_em_model.build_seperate_graph()
-sen_em_model.build_total_graph()
-sen_em_model.model_compile(lr=lr, loss_weights=loss_weights)
+with tf.device('/device:GPU:0'):
+    sen_em_model = sentenceEM(encoder_args=encoder_args, linguistic_decoder_args=linguistic_decoder_args,
+                              input_shapes=input_shapes, seed=seed, training_state=training_state)
+    sen_em_model.build_seperate_graph()
+    sen_em_model.build_total_graph()
+    sen_em_model.model_compile(lr=lr)
 sen_em_model.model_visualize()
 
 
@@ -36,90 +39,55 @@ sen_em_model.model_visualize()
 ## Model train ##
 #################
 
+wandb_config = {'batch_size':batch_size,
+                'learning_rate': lr,
+                'channel_type': 'single',
+                'n_mels': n_mels,
+                'seed': seed,
+                'date': '2020-12-06',
+                'train_model_number': train_model_number,
+                'Encoder activation': encoder_args['activation'],
+                'Linguistic decoder activation': linguistic_decoder_args['activation'],
+                'Decoder kernel':  linguistic_decoder_args['kernel_size'],
+                'memo': 'init std=0.1, Dropout_rate: 0.2',
+                'model type': 'modified model(only linguistic)'}
+wandb_run = wandb.init(project='Speech2Pickup', name='sentenceEM', config=wandb_config)
+total_model_file_path = '/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/' + str(train_model_number) + '/total_model/sentenceEM_total_model'
+encoder_model_file_path = '/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/' + str(train_model_number) + '/encoder_model/sentenceEM_encoder_model'
+model_configuration_file = '/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/' + str(train_model_number) + '/model_config.txt'
 relative_data_directory_path = '/content/drive/MyDrive/Speech2Pickup/data_v2.2_single_channel'
-wandb.init(project='Speech2Pickup', name='sentenceEM_lr:0.001')
-model_save_freq = 5
-for i in range(epochs):
-    try:
-        print('='*20)
-        print('Epoch: {}'.format(i+1))
 
-        # Prepare training
-        one_shot_load_num = 50
-        start = 0
-        end = start + batch_size*one_shot_load_num
-        epoch_loss = []
-        extra_train_state = False
-        if i == 0:
-            data_files = data_shuffle(relative_data_directory_path)
-        else:
-            random.shuffle(data_files)
-          
-        if len(data_files) % (batch_size*one_shot_load_num) != 0:
-            extra_train_state = True
-            print('extra train needed')
-        
-        # Train
-        while end <= len(data_files):
-            print('Processing {}/{}'.format(end//(batch_size*one_shot_load_num), len(data_files)//(batch_size*one_shot_load_num))) if extra_train_state == False \
-            else print('Processing {}/{}'.format(end//(batch_size*one_shot_load_num), (len(data_files)//(batch_size*one_shot_load_num))+1))
-            batch_data_files = data_files[start:end]
-            acoustic_train_batch = []
-            linguistic_train_batch = []
-            for ii in range(batch_size*one_shot_load_num):
-                data = load_single_npz_data(relative_data_directory_path=relative_data_directory_path, file_name=batch_data_files[ii])
-                acoustic_train_batch.append(data['arr_0'])
-                linguistic_train_batch.append(data['arr_1'])
-            acoustic_train_batch = np.array(acoustic_train_batch)
-            linguistic_train_batch = np.array(linguistic_train_batch)
-            with tf.device('/device:GPU:0'):
-              temp_loss = sen_em_model.model_train(X_train=acoustic_train_batch, Y_linguistic_train=linguistic_train_batch,
-                                                  Y_acoustic_train=acoustic_train_batch, batch_size=batch_size)
-              
-              for iii in range(len(temp_loss)):
-                wandb.log({'temp_loss': temp_loss[iii]})
-              epoch_loss.extend(temp_loss)
-            start = end
-            end = start + batch_size*one_shot_load_num
-            
-        if extra_train_state:
-            print('Processing {}/{}'.format((len(data_files)//(batch_size*one_shot_load_num))+1, (len(data_files)//(batch_size*one_shot_load_num))+1))
-            batch_data_files = data_files[start:]
-            acoustic_train_batch = []
-            linguistic_train_batch = []
-            for ii in range(len(batch_data_files)):
-                data = load_single_npz_data(relative_data_directory_path=relative_data_directory_path, file_name=batch_data_files[ii])
-                acoustic_train_batch.append(data['arr_0'])
-                linguistic_train_batch.append(data['arr_1'])
-            acoustic_train_batch = np.array(acoustic_train_batch)
-            linguistic_train_batch = np.array(linguistic_train_batch)
-            with tf.device('/device:GPU:0'):
-              temp_loss = sen_em_model.model_train(X_train=acoustic_train_batch, Y_linguistic_train=linguistic_train_batch,
-                                                  Y_acoustic_train=acoustic_train_batch, batch_size=batch_size)
-              for iii in range(len(temp_loss)):
-                wandb.log({'temp_loss': temp_loss[iii]})
-              epoch_loss.extend(temp_loss)
+# Write model configuration in .txt file
+with open(model_configuration_file, 'w') as f:
+    f.write(str(wandb_config))
 
-        epoch_loss = np.mean(np.array(epoch_loss))
-        wandb.log({'epoch_loss': epoch_loss})
+# Load data
+print('Loading data...')
+data_file = listdir(relative_data_directory_path)[0]
+data = load_single_npz_data(relative_data_directory_path=relative_data_directory_path, file_name=data_file)
+acoustic_data = data['acoustic']
+linguistic_data = data['linguistic']
 
-        # Model save
-        if (i+1) % model_save_freq == 0:
-          print('Finished training {} epochs'.format(i+1))
-          sen_em_model.model.save_weights(filepath='/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/total_model/sentenceEM_total_model', overwrite=True)
-          sen_em_model.encoder_model.save_weights(filepath='/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/encoder_model/sentenceEM_encoder_model', overwrite=True)
-          print('Model saving complete!')
-    except KeyboardInterrupt:
-        pass
+# Train model and save
+print('Start training')
+try:
+    # Train
+    with tf.device('/device:GPU:0'):
+        sen_em_model.model_train(X_train=acoustic_data, Y_linguistic_train=linguistic_data, batch_size=batch_size, epochs=epochs,
+                                 total_model_file_path=total_model_file_path, encoder_model_file_path=encoder_model_file_path)
+except KeyboardInterrupt:
+    pass
 
 
 
 #############################
 ## Erase model from memory ##
+### Finish wandb process ####
 #############################
 
 tf.keras.backend.clear_session()
 del sen_em_model
+wandb_run.finish()
 
 
 
@@ -128,7 +96,91 @@ del sen_em_model
 ################
 # model compiling should be done first
 
-sen_em_model.model.load_weights('/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/sentenceEM_model')
+model_path = '/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/' + str(train_model_number) + '/total_model/sentenceEM_total_model'
+sen_em_model.model.load_weights(model_path)
+
+
+
+###############################
+## Check loaded model output ##
+###############################
+
+import matplotlib.pyplot as plt
+import librosa.display
+
+# Set word dictionary
+print('Loading word dictionary..')
+relative_script_directory_path = './drive/MyDrive/Speech2Pickup/train_script'
+word_dic, word_dic_size = make_word_dictionary(relative_script_directory_path)
+
+# Load data
+print('Loading data..')
+relative_data_directory_path = '/content/drive/MyDrive/Speech2Pickup/data_v2.2_single_channel'
+file_name = 'senEM_preprocessed.npz'
+n_data = 30988  # Select n_data between 0~40697
+data = load_single_npz_data(relative_data_directory_path=relative_data_directory_path, file_name=file_name)
+acoustic_train_batch = [data['acoustic'][n_data]]
+linguistic_train_batch = [data['linguistic'][n_data]]
+acoustic_train_batch = np.array(acoustic_train_batch, dtype=np.float32)
+linguistic_train_batch = np.array(linguistic_train_batch, dtype=np.float32)
+
+# Get model output
+print('='*20)
+print('Model output')
+with tf.device('/device:GPU:0'):
+    l_out_full = sen_em_model.model(acoustic_train_batch)
+
+l_out_full = np.squeeze(kb.eval(l_out_full))
+l_true = np.squeeze(linguistic_train_batch)
+l_out = np.argmax(l_out_full, axis=0)
+l_true = np.argmax(l_true, axis=0)
+
+# Get the ground truth and predicted sentence
+true_sentence = []
+predicted_sentence = []
+word_dic_keys = list(word_dic.keys())
+n = 0
+for i in l_true:
+  if n==0:
+    true_sentence.append(word_dic_keys[i])
+  elif true_sentence[-1] != word_dic_keys[i]:
+    true_sentence.append(word_dic_keys[i])
+  n += 1
+n = 0
+for i in l_out:
+  if n==0:
+    predicted_sentence.append(word_dic_keys[i])
+  elif predicted_sentence[-1] != word_dic_keys[i]:
+    predicted_sentence.append(word_dic_keys[i])
+  n += 1
+true_sentence = ' '.join(true_sentence)
+predicted_sentence = ' '.join(predicted_sentence)
+print('True: {}'.format(true_sentence))
+print('Predict: {}'.format(predicted_sentence))
+
+# Plot the ground truth and predicted sentence (one-hot encoded)
+fig, ax = plt.subplots(1)
+ax.plot(l_out, label='prediction')
+ax.plot(l_true, label='ground truth')
+ax.set_title('Linguistic feature')
+ax.set_xlabel('Time step')
+ax.set_ylabel('Freq')
+plt.legend()
+plt.show()
+
+# Plot the ground truth and model output
+fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(25, 10))
+ax[0].imshow(data['linguistic'][n_data])
+ax[1].imshow(l_out_full)
+
+# Get encoder model output
+print('='*20)
+print('Encoder model output')
+with tf.device('/device:GPU:0'):
+    l_out_embedding = sen_em_model.encoder_model(acoustic_train_batch)
+
+l_out_embedding = np.squeeze(kb.eval(l_out_embedding))
+print(l_out_embedding)
 
 
 

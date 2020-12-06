@@ -209,11 +209,13 @@ def save_data_v2_2(relative_data_directory_path, relative_script_directory_path,
     sample_rates_idx = 1
     word_time_intervals_idx = 2
     num_total_data_count = 0
+    mel_specs =[]
+    word_labels = []
 
-    # Due to the delay time in google drive, '/data_v2.2' folder should be already prepared in 'Google drive' when running in 'Google Colab'
-    # Check directiry to save data
-    if not isdir(relative_save_data_directory_path):
-        makedirs(relative_save_data_directory_path)
+    # # Due to the delay time in google drive, '/data_v2.2' folder should be already prepared in google drive
+    # # Check directiry to save data
+    # if not isdir(relative_save_data_directory_path):
+    #     makedirs(relative_save_data_directory_path)
     
     # Process needed data
     for i in range(len(data_files)):
@@ -233,9 +235,13 @@ def save_data_v2_2(relative_data_directory_path, relative_script_directory_path,
             word_label = word_interval_continualize(len_mel_spec=mel_spec.shape[1], sample_rate=data[sample_rates_idx][ii], \
                 hop_length=hop_length, word_time_interval=data[word_time_intervals_idx][ii], \
                 word_dictionary=word_dic, word_dictionary_size=word_dic_size)
-            save_file_name = relative_save_data_directory_path + '/senEM_preprocessed_{}.npz'.format(num_total_data_count)
-            np.savez(save_file_name, mel_spec, word_label)
+
+            mel_specs.append(mel_spec)
+            word_labels.append(word_label)
         print('Finished processing {} data'.format(num_data))
+    
+    save_file_name = relative_save_data_directory_path + '/senEM_preprocessed.npz'
+    np.savez_compressed(save_file_name, acoustic=mel_specs, linguistic=word_labels)
 
 # # Save data_v1.0
 # relative_save_data_directory_path = './data/data_v1.0'
@@ -257,12 +263,12 @@ def save_data_v2_2(relative_data_directory_path, relative_script_directory_path,
 # relative_save_data_directory_path = './data/data_v2.1'
 # save_data_v2_1(relative_data_directory_path, relative_save_data_directory_path)
 
-# # Save data_v2.2_single_channel
+# Save data_v2.2_single_channel
 # relative_data_directory_path = '/content/drive/MyDrive/Speech2Pickup/data_v2.1'
-# relative_save_data_directory_path = '/content/drive/MyDrive/Speech2Pickup/data_v2.2_single_channel'
+# relative_save_data_directory_path = '/content/drive/MyDrive/Speech2Pickup/data_v2.2_single_channel_grouping'
 # save_data_v2_2(relative_data_directory_path, relative_script_directory_path, relative_save_data_directory_path, word_dic, word_dic_size, mel_feature_type='single')
 
 # # Save data_v2.2_three_channel
 # relative_data_directory_path = '/content/drive/MyDrive/Speech2Pickup/data_v2.1'
-# relative_save_data_directory_path = '/content/drive/MyDrive/Speech2Pickup/data_v2.2_three_channel'
+# relative_save_data_directory_path = '/content/drive/MyDrive/Speech2Pickup/data_v2.2_three_channel_grouping'
 # save_data_v2_2(relative_data_directory_path, relative_script_directory_path, relative_save_data_directory_path, word_dic, word_dic_size, mel_feature_type='three')

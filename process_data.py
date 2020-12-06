@@ -34,15 +34,14 @@ def audio_length_equalize_and_save(relative_data_directory_path, relative_save_d
             print('Processing {}/{}'.format(i+1, total_file_num))
             data = load_single_data(relative_data_directory_path, data_files[i])
             sampled_audios = data[sampled_audios_idx]
-            sampled_rates = data[sample_rates_idx]
 
             for ii in range(len(sampled_audios)):
                 # Add zero padding to 'sampled audio'
                 len_zero_padding = max_sampled_audio_len - len(sampled_audios[ii])
-                sampled_audios[ii].extend([0]*len_zero_padding)
+                sampled_audios[ii] = np.append(sampled_audios[ii], [0]*len_zero_padding)
 
             data[sampled_audios_idx] = sampled_audios
-            result = save_single_data(relative_save_data_directory_path, data, i+1)
+            result = save_single_data(relative_save_data_directory_path, data, i+1, data_type)
 
     elif data_type == 'data_v2.0':
         sampled_audios_idx = 0
@@ -64,8 +63,6 @@ def audio_length_equalize_and_save(relative_data_directory_path, relative_save_d
                 curr_sampled_audio_len = len(sampled_audios[i])
                 if curr_sampled_audio_len > max_sampled_audio_len:
                     max_sampled_audio_len = curr_sampled_audio_len
-                    # print(max_sampled_audio_len)
-                    # print(data[2][i])
         
         # Modify 'sampled_audios' and 'word_time_intervals'
         # of 'data_v2.0' to make audio length same
@@ -89,7 +86,7 @@ def audio_length_equalize_and_save(relative_data_directory_path, relative_save_d
             data[sampled_audios_idx] = sampled_audios
             data[word_time_intervals_idx] = word_time_intervals
 
-            result = save_single_data(relative_save_data_directory_path, data, i+1)
+            result = save_single_data(relative_save_data_directory_path, data, i+1, data_type)
     else:
         raise ValueError('Unavailable data directory path for audio zero padding')
 
@@ -146,28 +143,40 @@ def make_word_dictionary(relative_script_directory_path):
     # print(word_dictionary)
     return word_dictionary, word_dictionary_size
 
-def save_single_data(relative_save_data_directory_path, data, save_file_num):
+def save_single_data(relative_save_data_directory_path, data, save_file_num, data_type):
     # Check directiry to save data
     if not isdir(relative_save_data_directory_path):
         makedirs(relative_save_data_directory_path)
     
     # Save
     num_data = len(data[0])
-    each_num_data = int(num_data/4)
     distrib_num_file = 4
+    each_num_data = int(num_data/distrib_num_file)
     start = 0; end = start + each_num_data
     for i in range(1, distrib_num_file):
         file_name = relative_save_data_directory_path + '/senEM_preprocessed_{}.pkl'.format(distrib_num_file*(save_file_num-1)+i)
         print('Saving {} data'.format(distrib_num_file*(save_file_num-1)+i))
         with open(file_name, 'wb') as f:
-            pickle.dump([data[0][start:end], data[1][start:end], data[2][start:end]], f)
+            if data_type == 'data_v1.0':
+                pickle.dump([data[0][start:end], data[1][start:end], data[2][start:end],
+                            data[3][start:end], data[4][start:end], data[5][start:end]], f)
+            elif data_type == 'data_v2.0':
+                pickle.dump([data[0][start:end], data[1][start:end], data[2][start:end]], f)
+            else:
+                raise ValueError('Unavailable data directory path for saving data')
         start = end
         end += each_num_data
 
     file_name = relative_save_data_directory_path + '/senEM_preprocessed_{}.pkl'.format(distrib_num_file*save_file_num)
     print('Saving {} data'.format(distrib_num_file*save_file_num))
     with open(file_name, 'wb') as f:
-        pickle.dump([data[0][start:], data[1][start:], data[2][start:]], f)
+        if data_type == 'data_v1.0':
+            pickle.dump([data[0][start:], data[1][start:], data[2][start:],
+                        data[3][start:], data[4][start:], data[5][start:]], f)
+        elif data_type == 'data_v2.0':
+            pickle.dump([data[0][start:], data[1][start:], data[2][start:]], f)
+        else:
+            raise ValueError('Unavailable data directory path for saving data')
     return True
 
 # # Check make_word_dictionary()

@@ -58,7 +58,7 @@ def createModel(curr_img, curr_speech, img_size, num_hg_Depth, dim_hg_feat, dim_
     with vs.variable_scope('HGN'):
         with vs.variable_scope('pre'):
             cnv1 = tf.layers.conv2d(curr_img, filters=dim_hg_feat/4, kernel_size=7, strides=2, padding='Same')
-            cnv1 = tf.layers.dropout(cnv1, rate=dr_rate)
+            cnv1 = tf.layers.dropout(cnv1, rate=dr_rate) if training_state else cnv1
 
             cnv1 = tf.layers.batch_normalization(cnv1)
             cnv1 = tf.nn.relu(cnv1)
@@ -83,7 +83,7 @@ def createModel(curr_img, curr_speech, img_size, num_hg_Depth, dim_hg_feat, dim_
             
         with vs.variable_scope('out'): 
             Out = tf.layers.conv2d(ll, filters=dim_output, kernel_size=1, strides=1, padding='Same')
-            Out = tf.layers.dropout(Out, rate=dr_rate)
+            Out = tf.layers.dropout(Out, rate=dr_rate) if training_state else Out
     
     return Out
 

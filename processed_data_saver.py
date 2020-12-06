@@ -7,13 +7,16 @@
 2. 'Data_v1.1'
     Purpose: Training whole speech2pickup network (audio length same)
     Content: [img_idxs, pose_outputs, sentence_lens, sampled_audios, sample_rates, text_commands]
-3. 'Data_v2.0'
+3. 'Data_v1.2'  (check preprocess4HGN.py)
+    Purpose: Training whole speech2pickup network (audio length same)
+    Content: [img_idxs, sentence_lens, mel_spectograms, pose_outputs, text_commands]
+4. 'Data_v2.0'
     Purpose: Training sentence embedding network
     Content: [sampled_audios, sample_rates, word_time_intervals]
-4. 'Data_v2.1'
+5. 'Data_v2.1'
     Purpose: Training sentence embedding network (audio length same)
     Content: [sampled_audios, sample_rates, word_time_intervals]
-5. 'Data_v2.2'
+6. 'Data_v2.2'
     Purpose: Training sentence embedding network (audio length same, words are one-hot encoded)
     Content: [mel_spectograms, word_label_in_time_interval]
 """
@@ -118,6 +121,9 @@ def save_data_v1_0(relative_audio_directory_path, sample_sr, relative_save_data_
             pickle.dump(total_data_list, f)
         print('{} saved'.format(file_name.split('/')[-1]))
 
+def save_data_v1_1(relative_data_directory_path, relative_save_data_directory_path):
+    audio_length_equalize_and_save(relative_data_directory_path, relative_save_data_directory_path)
+
 def save_data_v2_0(relative_audio_directory_path, sr, relative_aligned_data_directory_path, sub_dirs, relative_save_data_directory_path):
     # Process and save data
     for sub_dir in sub_dirs:
@@ -200,7 +206,7 @@ def save_data_v2_2(relative_data_directory_path, relative_script_directory_path,
     data_files = [f for f in listdir(relative_data_directory_path) if isfile(join(relative_data_directory_path, f))]
     data_files.sort()
 
-    # Set configuration
+    # Set mel spectogram configuration
     n_fft = 2048
     hop_length = int(n_fft/8)
     win_length = int(n_fft/2)
@@ -249,6 +255,11 @@ def save_data_v2_2(relative_data_directory_path, relative_script_directory_path,
 # save_data_v1_0(relative_audio_directory_path, sample_sr=16000, relative_save_data_directory_path)
 # relative_audio_directory_path = './data/train_speech/Case_en-US_FEMALE'
 # save_data_v1_0(relative_audio_directory_path, sample_sr=16000, relative_save_data_directory_path)
+
+# # Save data_v2.1
+# relative_data_directory_path = './data/data_v1.0'
+# relative_save_data_directory_path = './data/data_v1.1'
+# save_data_v1_1(relative_data_directory_path, relative_save_data_directory_path)
 
 # # Save data_v2.0
 # relative_audio_directory_path = './data/train_speech'

@@ -141,3 +141,26 @@ class CustomCallback(Callback):
             self.best = current
             self.total_model.save_weights(filepath=self.total_model_file_path, overwrite=True)
             self.encoder_model.save_weights(filepath=self.encoder_model_file_path, overwrite=True)
+
+class sentenceEM_encoder(tf.keras.Model):
+    def __init__(self, encoder_args, input_shapes, seed, training_state):
+        """
+        encoder_args: 
+        num_stacks, num_channels, kernel_size, dropout_rate, activation, return_type, seed
+        """
+        super(sentenceEM_encoder, self).__init__()
+        self.input_shapes = input_shapes
+        self.input_reshape_block = layers.Permute((2, 1))
+        self.encoder = TempConvnet(num_stacks=encoder_args['num_stacks'], num_channels=encoder_args['num_channels'],
+                                   kernel_size=encoder_args['kernel_size'], dropout_rate=encoder_args['dropout_rate'], activation=encoder_args['activation'],
+                                   return_type=encoder_args['return_type'], seed=seed, training_state=training_state)
+
+    def call(self, x):
+        embedded_outputs = self.input_reshape_block(x)
+        embedded_outputs = self.encoder(embedded_outputs)
+        return embedded_outputs
+    
+    def build_graph(self):
+        x = tf.keras.Input(batch_shape=self.input_shapes)
+        embedded_outputs = self.call(x)
+        self.encoder_model = tf.keras.Model(inputs=x, outputs=embedded_outputs)

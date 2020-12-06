@@ -55,14 +55,14 @@ def HGN_organize_data(img_path, script_path):
         tmp_img = io.imread(('%s/%s') % (img_path, f))
         tmp_img = resize(tmp_img, [img_resize, img_resize], preserve_range=True)
         tmp_img = tmp_img / 255.0
-        total_images[f[0:4]] = tmp_img
+        total_images[f[0:4]] = tmp_img  ## In speech2pickup, f[0:4] --> int(f[0:4])
 
     total_heatmaps = dict()
     for f in script_files:
         npzfile = np.load(('%s/%s') % (script_path, f))
         tmp_heatmap = npzfile['arr_0']
         tmp_heatmap = resize(tmp_heatmap, [heatmap_resize, heatmap_resize], preserve_range=True)
-        total_heatmaps[f[0:12]] = tmp_heatmap
+        total_heatmaps[f[0:12]] = tmp_heatmap  ## In speech2pickup, f[0:12] --> (int(f[0:12].split('_')[0]), int(f[0:12].split('_')[1]), int(f[0:12].split('_')[2]))
     return total_images, total_heatmaps
   
 def divide_img_idx(img_idx, num_data):
@@ -220,8 +220,9 @@ def plot_HGN_result(curr_test_input, curr_test_img, mean_of_esti, uncertainty, b
     cax4 = divider4.append_axes("right", size="5%", pad=0.05)
     plt.colorbar(plot4, ax=ax4, cax=cax4)
  
- ############################
- ## Added to original file ##
+#############################
+### Added to original file ##
+#############################
 
 def read_script_files(script_dir_path):
     script_files = [f for f in listdir(script_dir_path) if isfile(join(script_dir_path, f))]

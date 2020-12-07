@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from plot_model import plot_model
+# from plot_model import plot_model
 # from tensorflow.keras.utils import plot_model
 
 class ResidualBlock(tf.keras.Model):

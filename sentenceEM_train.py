@@ -13,7 +13,7 @@ import wandb
 ## Model configure ##
 #####################
 
-train_model_number = 12
+train_model_number = 'SOTA'
 batch_size = 36; seed = 1; lr = 0.0005; epochs = 500
 n_mels = 40
 time_steps = 303
@@ -52,8 +52,8 @@ wandb_config = {'batch_size':batch_size,
                 'memo': 'init std=0.1, Dropout_rate: 0.2',
                 'model type': 'modified model(only linguistic)'}
 wandb_run = wandb.init(project='Speech2Pickup', name='sentenceEM', config=wandb_config)
-total_model_file_path = '/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/' + str(train_model_number) + '/total_model/sentenceEM_total_model'
-encoder_model_file_path = '/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/' + str(train_model_number) + '/encoder_model/sentenceEM_encoder_model'
+total_model_file_path = '/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/' + str(train_model_number) + '/total_model/model.ckpt'
+encoder_model_file_path = '/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/' + str(train_model_number) + '/encoder_model/model.ckpt'
 model_configuration_file = '/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/' + str(train_model_number) + '/model_config.txt'
 relative_data_directory_path = '/content/drive/MyDrive/Speech2Pickup/data_v2.2_single_channel'
 

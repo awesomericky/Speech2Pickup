@@ -3,11 +3,11 @@ import tensorflow as tf
 def convBlock(curr_input, numIn, numOut, dr_rate):
     net = tf.layers.batch_normalization(curr_input)
     net = tf.nn.relu(net)
-    net = tf.layers.conv2d(net, numOut/2, 1, padding='Same')
+    net = tf.layers.conv2d(net, int(numOut/2), 1, padding='Same')
     net = tf.layers.dropout(net, rate=dr_rate)
     net = tf.layers.batch_normalization(net)
     net = tf.nn.relu(net)
-    net = tf.layers.conv2d(net, numOut/2, 3, padding='Same')
+    net = tf.layers.conv2d(net, int(numOut/2), 3, padding='Same')
     net = tf.layers.dropout(net, rate=dr_rate)
     net = tf.layers.batch_normalization(net)
     net = tf.nn.relu(net)

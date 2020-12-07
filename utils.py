@@ -42,8 +42,9 @@ def QGN_organize_data(img_path):
         total_images[f[0:4]] = tmp_img
     
     return total_images
-    
-def HGN_organize_data(img_path, script_path):
+
+def HGN_organize_data(img_path, script_path, model_type):
+    assert model_type in ['text2pickup', 'speech2pickup']
     img_resize = 256
     heatmap_resize = 64
     
@@ -55,39 +56,28 @@ def HGN_organize_data(img_path, script_path):
         tmp_img = io.imread(('%s/%s') % (img_path, f))
         tmp_img = resize(tmp_img, [img_resize, img_resize], preserve_range=True)
         tmp_img = tmp_img / 255.0
-        total_images[f[0:4]] = tmp_img  ## In speech2pickup, f[0:4] --> int(f[0:4])
+        if model_type == 'text2pickup':
+            total_images[f[0:4]] = tmp_img
+        elif model_type == 'speech2pickup':
+            total_images[int(f[0:4])] = tmp_img
+        else:
+            raise ValueError('Unsupported model type')
 
     total_heatmaps = dict()
     for f in script_files:
         npzfile = np.load(('%s/%s') % (script_path, f))
         tmp_heatmap = npzfile['arr_0']
         tmp_heatmap = resize(tmp_heatmap, [heatmap_resize, heatmap_resize], preserve_range=True)
-        total_heatmaps[f[0:12]] = tmp_heatmap  ## In speech2pickup, f[0:12] --> (int(f[0:12].split('_')[0]), int(f[0:12].split('_')[1]), int(f[0:12].split('_')[2]))
+        if model_type == 'text2pickup':
+            total_heatmaps[f[0:12]] = tmp_heatmap
+        elif model_type == 'speech2pickup':
+            heatmap_file_name = f[0:12].split('_')
+            index = (int(heatmap_file_name[0]), int(heatmap_file_name[1]), int(heatmap_file_name[2]))
+            total_heatmaps[index] = tmp_heatmap
+        else:
+            raise ValueError('Unsupported model type')
     return total_images, total_heatmaps
-  
-def divide_img_idx(img_idx, num_data):
-    if isfile('./data/divide_img_idx.npz') == False:
-        random_seed=1
-        divide_rate=20
 
-        tmp_img_idx = range(max(img_idx)+1)
-        random.seed(random_seed)
-        random.shuffle(tmp_img_idx)
-
-        num_test_img = int((max(img_idx)+1)/divide_rate)
-        test_img_idx = tmp_img_idx[0:num_test_img]
-        train_img_idx = tmp_img_idx[num_test_img:len(tmp_img_idx)]
-
-        np.savez('./data/divide_img_idx.npz', train_img_idx, test_img_idx)
-    else:
-        npzfile = np.load('./data/divide_img_idx.npz')
-        train_img_idx = npzfile['arr_0']
-        test_img_idx = npzfile['arr_1']
-                               
-    print('Test image index : %s' % (test_img_idx))
-
-    return test_img_idx, train_img_idx
-    
 def get_test_idx(img_idx, num_data):
     test_img_idx, train_img_idx = divide_img_idx(img_idx, num_data)
 
@@ -98,6 +88,29 @@ def get_test_idx(img_idx, num_data):
     idx_train = [i for i in idx_whole if i not in idx_test]
     
     return idx_test, idx_train
+
+def divide_img_idx(img_idx, num_data):
+    if isfile('/content/drive/MyDrive/Speech2Pickup/divide_img_idx.npz') == False:
+        random_seed=1
+        divide_rate=20
+
+        tmp_img_idx = [i for i in range(np.max(img_idx)+1)]
+        random.seed(random_seed)
+        random.shuffle(tmp_img_idx)
+
+        num_test_img = int((np.max(img_idx)+1)/divide_rate)
+        test_img_idx = tmp_img_idx[0:num_test_img]
+        train_img_idx = tmp_img_idx[num_test_img:len(tmp_img_idx)]
+
+        np.savez('/content/drive/MyDrive/Speech2Pickup/divide_img_idx.npz', train_img_idx, test_img_idx)
+    else:
+        npzfile = np.load('/content/drive/MyDrive/Speech2Pickup/divide_img_idx.npz')
+        train_img_idx = npzfile['arr_0']
+        test_img_idx = npzfile['arr_1']
+                               
+    print('Test image index : %s' % (test_img_idx))
+
+    return test_img_idx, train_img_idx
 
 def QGN_divide_train_test(img_idx, sen_len, question_embeds, esti_maps, uncertainty_maps, answer_labels, num_data):
     idx_test, idx_train = get_test_idx(img_idx, num_data)
@@ -125,25 +138,59 @@ train_img_idx, train_sen_len, train_embeds,\
 train_esti, train_uncertainty, train_answer_labels,\
 test_img_idx, test_sen_len, test_embeds, test_esti, test_uncertainty, test_answer_labels
             
-def HGN_divide_train_test(img_idx, sen_len, text_inputs, pos_outputs, num_data):
-    idx_test, idx_train = get_test_idx(img_idx, num_data)
+def HGN_divide_train_test(args, model_type):
+    assert model_type in ['text2pickup', 'speech2pickup']
 
-    num_train = len(idx_train)
-    train_img_idx = img_idx[idx_train, :]
-    train_sen_len = sen_len[idx_train, :]
-    train_text_inputs = text_inputs[idx_train, :, :]
-    train_pos_outputs = pos_outputs[idx_train, :]
+    if model_type == 'text2pickup':
+        img_idx = args['img_idx']
+        sen_len = args['sen_len']
+        text_inputs = args['text_inputs']
+        pos_outputs = args['pos_outputs']
+        num_data = args['num_data']
+
+        idx_test, idx_train = get_test_idx(img_idx, num_data)
+
+        num_train = len(idx_train)
+        train_img_idx = img_idx[idx_train, :]
+        train_sen_len = sen_len[idx_train, :]
+        train_text_inputs = text_inputs[idx_train, :, :]
+        train_pos_outputs = pos_outputs[idx_train, :]
+        
+        num_test = len(idx_test)    
+        test_img_idx = img_idx[idx_test, :]
+        test_sen_len = sen_len[idx_test, :]
+        test_text_inputs = text_inputs[idx_test, :, :]
+        test_pos_outputs = pos_outputs[idx_test, :]
+        print('Ended divided training and test dataset. Training : %d, Test : %d' % (num_train, num_test))
+        
+        return idx_train, idx_test, num_train, num_test, \
+            train_img_idx, train_sen_len, train_text_inputs, train_pos_outputs, \
+            test_img_idx, test_sen_len, test_text_inputs, test_pos_outputs
     
-    num_test = len(idx_test)    
-    test_img_idx = img_idx[idx_test, :]
-    test_sen_len = sen_len[idx_test, :]
-    test_text_inputs = text_inputs[idx_test, :, :]
-    test_pos_outputs = pos_outputs[idx_test, :]
-    print('Ended divided training and test dataset. Training : %d, Test : %d' % (num_train, num_test))
-    
-    return idx_train, idx_test, num_train, num_test, \
-           train_img_idx, train_sen_len, train_text_inputs, train_pos_outputs, \
-           test_img_idx, test_sen_len, test_text_inputs, test_pos_outputs,
+    elif model_type == 'speech2pickup':
+        img_idx = args['img_idx']
+        speech_inputs = args['speech_inputs']
+        pos_outputs = args['pos_outputs']
+        num_data = args['num_data']
+
+        idx_test, idx_train = get_test_idx(img_idx, num_data)
+
+        num_train = len(idx_train)
+        train_img_idx = img_idx[idx_train, :]
+        train_speech_inputs = speech_inputs[idx_train, :, :]
+        train_pos_outputs = pos_outputs[idx_train, :]
+        
+        num_test = len(idx_test)    
+        test_img_idx = img_idx[idx_test, :]
+        test_speech_inputs = speech_inputs[idx_test, :, :]
+        test_pos_outputs = pos_outputs[idx_test, :]
+        print('Ended divided training and test dataset. Training : %d, Test : %d' % (num_train, num_test))
+        
+        return idx_train, idx_test, num_train, num_test, \
+            train_img_idx, train_speech_inputs, train_pos_outputs, \
+            test_img_idx, test_speech_inputs, test_pos_outputs
+    else:
+        raise ValueError('Unsupported model type')
            
 
 def load_test_img(img_path, curr_test_img_idx, img_resize, plot_flag):

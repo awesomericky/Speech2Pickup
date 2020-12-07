@@ -20,10 +20,32 @@ def hourglass_with_senEM(curr_input, senEM_output, numDepth, numIn, numOut, dr_r
     low3 = Residual(low2, numIn, numOut-1, dr_rate)
     
     with tf.variable_scope("speech_weights", reuse=True):
-        exec('_W_o%d = tf.get_variable('"'W_o%d'"')' % (numDepth, numDepth))
-        exec('_b_o%d = tf.get_variable('"'b_o%d'"')' % (numDepth, numDepth))
+        if numDepth == 4:
+            _W_o4 = tf.get_variable('W_o4')
+            _b_o4 = tf.get_variable('b_o4')
+        elif numDepth == 3:
+            _W_o3 = tf.get_variable('W_o3')
+            _b_o3 = tf.get_variable('b_o3')
+        elif numDepth == 2:
+            _W_o2 = tf.get_variable('W_o2')
+            _b_o2 = tf.get_variable('b_o2')
+        elif numDepth == 1:
+            _W_o1 = tf.get_variable('W_o1')
+            _b_o1 = tf.get_variable('b_o1')
+        else:
+            raise ValueError('Code need to be fixed due to changed numDepth')
     
-    exec('fitted_senEM = tf.matmul(senEM_output, _W_o%d)+_b_o%d' % (numDepth, numDepth))  
+    if numDepth == 4:
+        fitted_senEM = tf.matmul(senEM_output, _W_o4)+_b_o4
+    elif numDepth == 3:
+        fitted_senEM = tf.matmul(senEM_output, _W_o3)+_b_o3
+    elif numDepth == 2:
+        fitted_senEM = tf.matmul(senEM_output, _W_o2)+_b_o2
+    elif numDepth == 1:
+        fitted_senEM = tf.matmul(senEM_output, _W_o1)+_b_o1
+    else:
+        raise ValueError('Code need to be fixed due to changed numDepth')
+
     fitted_senEM = tf.nn.dropout(fitted_senEM, 1-dr_rate)
     
     fitted_senEM = tf.reshape(fitted_senEM, [tf.shape(senEM_output)[0], 
@@ -55,7 +77,7 @@ def createModel(curr_img, curr_speech, img_size, num_hg_Depth, dim_hg_feat, dim_
                                                     dim_embedded_output=dim_embedded_output)
     senEM_output = curr_senEM_encoder.encode(curr_speech)
 
-    with vs.variable_scope('HGN'):
+    with vs.variable_scope('HGN', reuse=tf.AUTO_REUSE):
         with vs.variable_scope('pre'):
             cnv1 = tf.layers.conv2d(curr_img, filters=dim_hg_feat/4, kernel_size=7, strides=2, padding='Same')
             cnv1 = tf.layers.dropout(cnv1, rate=dr_rate) if training_state else cnv1
@@ -94,19 +116,19 @@ class senEM_encoder_w_connection:
         self.senEM = senEM
         self.dim_embedded_output = dim_embedded_output
 
-        with tf.variable_scope('HGN/hg/speech_weights'):
+        with tf.variable_scope('HGN/hg/speech_weights', reuse=tf.AUTO_REUSE):
             for i in range(hg_depth):
                 exec('self.W_o%d = tf.get_variable('"'W_o%d'"', dtype=tf.float32,\
-                                        initializer=tf.random_normal([self.dim_embedded_output, \
-                                                    (self.img_size/(2**(self.hg_depth+1-%d)))**2], \
+                                        initializer=tf.random_normal([8, \
+                                                    self.dim_embedded_output[1], \
+                                                    int((self.img_size/(2**(self.hg_depth+1-%d)))**2)],  \
                                                     stddev=stddev))' % (i+1, i+1, i+1))
                 exec('self.b_o%d = tf.get_variable('"'b_o%d'"', dtype=tf.float32,\
-                                       initializer=tf.random_normal([(self.img_size/(2**(self.hg_depth+1-%d)))**2], \
+                                       initializer=tf.random_normal([int((self.img_size/(2**(self.hg_depth+1-%d)))**2)], \
                                                                      stddev=stddev))' % (i+1, i+1, i+1))
     def encode(self, x):
-        with tf.variable_scope('HGN/senEM'):
-            self.senEM.build_graph()
-            senEM_model = self.senEM.encoder_model
-            embedded_outputs = senEM_model(x)
+        self.senEM.build_graph()
+        senEM_model = self.senEM.encoder_model
+        embedded_outputs = senEM_model(x)
 
         return embedded_outputs

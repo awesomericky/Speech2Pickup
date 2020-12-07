@@ -3,7 +3,7 @@ import tensorflow as tf
 import tensorflow.keras.layers as layers
 import tensorflow.keras.backend as kb
 from tensorflow.keras.callbacks import Callback
-from plot_model import plot_model
+# from plot_model import plot_model
 import random
 from TCN_and_decoder import TempConvnet
 from TCN_and_decoder import TempConvnet_Decoder
@@ -80,7 +80,10 @@ class sentenceEM(tf.keras.Model):
         self.model.compile(optimizer=optimizer, loss=[self.linguistic_loss_function], metrics=[metric])
 
     def model_train(self, X_train, Y_linguistic_train, batch_size, epochs, total_model_file_path, encoder_model_file_path):
-        custom_callback = CustomCallback(total_model_file_path, encoder_model_file_path, self.model, self.encoder_model)
+        sess = kb.get_session()
+        total_saver = tf.train.Saver(var_list=tf.trainable_variables())
+        encoder_saver = tf.train.Saver(var_list=[v for v in tf.trainable_variables() if v.name.split('/')[0] == 'temp_convnet'])
+        custom_callback = CustomCallback(total_model_file_path, encoder_model_file_path, sess, total_saver, encoder_saver)
         self.model.fit(x=X_train, y=[Y_linguistic_train], batch_size=batch_size, epochs=epochs, verbose=1, callbacks=[custom_callback])
 
     def custom_metric(self):
@@ -109,11 +112,12 @@ class sentenceEM(tf.keras.Model):
         return loss
 
 class CustomCallback(Callback):
-    def __init__(self, total_model_file_path, encoder_model_file_path, total_model, encoder_model):
+    def __init__(self, total_model_file_path, encoder_model_file_path, sess, total_saver, encoder_saver):
         self.total_model_file_path = total_model_file_path
         self.encoder_model_file_path = encoder_model_file_path
-        self.total_model = total_model
-        self.encoder_model = encoder_model
+        self.sess = sess
+        self.total_saver = total_saver
+        self.encoder_saver = encoder_saver
         self.monitor = 'categorical_accuracy'
         self.monitor_op = np.greater
         self.best = 0
@@ -139,8 +143,9 @@ class CustomCallback(Callback):
         current = logs.get(self.monitor)
         if self.monitor_op(current, self.best):
             self.best = current
-            self.total_model.save_weights(filepath=self.total_model_file_path, overwrite=True)
-            self.encoder_model.save_weights(filepath=self.encoder_model_file_path, overwrite=True)
+            self.total_saver.save(self.sess, self.total_model_file_path)
+            self.encoder_saver.save(self.sess, self.encoder_model_file_path)
+            
 
 class sentenceEM_encoder(tf.keras.Model):
     def __init__(self, encoder_args, input_shapes, seed, training_state):

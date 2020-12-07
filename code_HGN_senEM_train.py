@@ -5,10 +5,10 @@ import time
 from hourglass_with_senEM import createModel
 
 def train(img_resize, heatmap_resize, num_hg_Depth, dim_hg_feat,
-          n_mels, time_steps, dim_embedded_output, senEM_model,
-          batch_size, max_epoch, num_train, save_stride, learning_rate,
+          n_mels, time_steps, encoder_model_path, encoder_args, input_shapes, seed, training_state,
+          batch_size, max_epoch, num_train, save_stride, learning_rate, dropout_rate,
           restore_flag, restore_path, restore_epoch,
-          total_images, total_heatmaps, train_speech_inputs, train_img_idx, train_pos_outputs,):
+          total_images, total_heatmaps, train_speech_inputs, train_img_idx, train_pos_outputs):
     
     num_batch = num_train / batch_size
     
@@ -17,16 +17,17 @@ def train(img_resize, heatmap_resize, num_hg_Depth, dim_hg_feat,
     ph_heatmap = tf.placeholder(dtype=tf.float32, shape=[None, heatmap_resize, heatmap_resize, 1])
     ph_dropout = tf.placeholder(tf.float32)
 
-    result_heatmap = createModel(curr_img = ph_image,
+    result_heatmap, senEM = createModel(curr_img = ph_image,
                                  curr_speech=ph_speech,
                                  img_size=heatmap_resize, 
-                                 dim_embedded_output=dim_embedded_output,
                                  num_hg_Depth=num_hg_Depth,
                                  dim_hg_feat=dim_hg_feat,
                                  dim_output=1,
                                  dr_rate=ph_dropout,
-                                 senEM_model=senEM_model
-                                )
+                                 encoder_args=encoder_args,
+                                 input_shapes=input_shapes,
+                                 seed=seed,
+                                 training_state=training_state)
     loss = tf.reduce_mean((result_heatmap-ph_heatmap)**2)
     
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
@@ -34,6 +35,7 @@ def train(img_resize, heatmap_resize, num_hg_Depth, dim_hg_feat,
     init = tf.global_variables_initializer()
 
     saver = tf.train.Saver(var_list=tf.trainable_variables())
+    encoder_saver = tf.train.Saver(var_list=[v for v in tf.trainable_variables() if v.name.split('/')[0] == 'temp_convnet'])
 
     config = tf.ConfigProto()
     config.allow_soft_placement = True
@@ -46,10 +48,12 @@ def train(img_resize, heatmap_resize, num_hg_Depth, dim_hg_feat,
 
         if restore_flag == 1:
             saver.restore(sess, restore_path)
+        encoder_saver.restore(sess, encoder_model_path)
+        import pdb; pdb.set_trace()
 
         for _epoch in range(max_epoch-restore_epoch):
             random.seed(_epoch)
-            batch_shuffle = range(num_train)
+            batch_shuffle = [i for i in range(num_train)]
             random.shuffle(batch_shuffle)
 
             total_train_loss = 0.0
@@ -66,19 +70,16 @@ def train(img_resize, heatmap_resize, num_hg_Depth, dim_hg_feat,
                 batch_heatmaps = np.zeros((batch_size, heatmap_resize, heatmap_resize, 1))
 
                 for ii in range(len(batch_idx)):
-                    tmp_img = total_images['%04d' % batch_img_idx[ii, 0]]
+                    tmp_img = total_images[batch_img_idx[ii, 0]]
 
                     batch_images[ii, :, :, :] = tmp_img        
 
-                    tmp_heatmap = total_heatmaps['%04d_%03d_%03d' 
-                                                 % (batch_img_idx[ii, 0], 
-                                                    batch_pos_output[ii, 0], 
-                                                    batch_pos_output[ii, 1])]  
+                    tmp_heatmap = total_heatmaps[(batch_img_idx[ii, 0], batch_pos_output[ii, 0], batch_pos_output[ii, 1])]
 
                     batch_heatmaps[ii, :, :, 0] = tmp_heatmap
 
                 train_feed_dict = {ph_image: batch_images, ph_speech: batch_speech_inputs,
-                                   ph_heatmap: batch_heatmaps, ph_dropout: 0.0}
+                                   ph_heatmap: batch_heatmaps, ph_dropout: dropout_rate}
 
                 sess.run(optimizer, feed_dict=train_feed_dict)
                 curr_train_loss = sess.run(loss, feed_dict=train_feed_dict)

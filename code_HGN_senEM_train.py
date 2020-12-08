@@ -35,8 +35,7 @@ def train(img_resize, heatmap_resize, num_hg_Depth, dim_hg_feat,
 
     init = tf.global_variables_initializer()
 
-    saver = tf.train.Saver(var_list=tf.trainable_variables())
-    # encoder_saver = tf.train.Saver(var_list=[v for v in tf.trainable_variables() if v.name.split('/')[0] == 'temp_convnet'])
+    saver = tf.train.Saver()
 
     config = tf.ConfigProto()
     config.allow_soft_placement = True
@@ -49,7 +48,6 @@ def train(img_resize, heatmap_resize, num_hg_Depth, dim_hg_feat,
 
         if restore_flag == 0:
             senEM_encoder.load_weights(encoder_model_path)
-            # encoder_saver.restore(sess, encoder_model_path)
         elif restore_flag == 1:
             saver.restore(sess, restore_path)
         

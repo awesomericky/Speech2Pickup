@@ -12,6 +12,10 @@ from utils import read_script_files
 import pdb
 import wandb
 
+"""
+sentenceEM.py
+"""
+
 class sentenceEM(tf.keras.Model):
     def __init__(self, encoder_args, linguistic_decoder_args, input_shapes, seed, training_state):
         """
@@ -80,10 +84,7 @@ class sentenceEM(tf.keras.Model):
         self.model.compile(optimizer=optimizer, loss=[self.linguistic_loss_function], metrics=[metric])
 
     def model_train(self, X_train, Y_linguistic_train, batch_size, epochs, total_model_file_path, encoder_model_file_path):
-        sess = kb.get_session()
-        total_saver = tf.train.Saver(var_list=tf.trainable_variables())
-        encoder_saver = tf.train.Saver(var_list=[v for v in tf.trainable_variables() if v.name.split('/')[0] == 'temp_convnet'])
-        custom_callback = CustomCallback(total_model_file_path, encoder_model_file_path, sess, total_saver, encoder_saver)
+        custom_callback = CustomCallback(total_model_file_path, encoder_model_file_path, self.model, self.encoder_model)
         self.model.fit(x=X_train, y=[Y_linguistic_train], batch_size=batch_size, epochs=epochs, verbose=1, callbacks=[custom_callback])
 
     def custom_metric(self):
@@ -101,18 +102,20 @@ class sentenceEM(tf.keras.Model):
     def linguistic_loss_function(self, y_actual, y_predicted):
         epsil = 1e-5
         y_predicted_correct = -kb.log(y_predicted + epsil)
-        # y_predicted_incorrect = -kb.log(1 - y_predicted + epsil)
-        # y_actual_op = tf.math.subtract(tf.ones_like(y_actual), y_actual)
 
         correct_loss = layers.multiply([y_actual, y_predicted_correct])
-        # incorrect_loss = layers.multiply([y_actual_op, y_predicted_incorrect])
-        # loss = tf.math.add(correct_loss, incorrect_loss)
         loss = kb.sum(correct_loss, axis=1)
         loss = kb.mean(loss, keepdims=False)
         return loss
+    
+    def load_encoder_model(self, encoder_model_file_path):
+        self.encoder_model.load_weights(encoder_model_file_path)
+    
+    def load_total_model(self, total_model_file_path):
+        self.model.load_weights(total_model_file_path)
 
 class CustomCallback(Callback):
-    def __init__(self, total_model_file_path, encoder_model_file_path, sess, total_saver, encoder_saver):
+    def __init__(self, total_model_file_path, encoder_model_file_path, total_model, encoder_model):
         self.total_model_file_path = total_model_file_path
         self.encoder_model_file_path = encoder_model_file_path
         self.sess = sess
@@ -123,6 +126,8 @@ class CustomCallback(Callback):
         self.best = 0
         self.temp_loss = []
         self.temp_linguistic_accuracy = []
+        self.total_model = total_model
+        self.encoder_model = encoder_model
     
     def on_batch_end(self, batch, logs=None):
         self.temp_loss.append(logs.get('loss'))
@@ -143,9 +148,8 @@ class CustomCallback(Callback):
         current = logs.get(self.monitor)
         if self.monitor_op(current, self.best):
             self.best = current
-            self.total_saver.save(self.sess, self.total_model_file_path)
-            self.encoder_saver.save(self.sess, self.encoder_model_file_path)
-            
+            self.total_model.save_weights(self.total_model_file_path, overwrite=True)
+            self.encoder_model.save_weights(self.encoder_model_file_path, overwrite=True)
 
 class sentenceEM_encoder(tf.keras.Model):
     def __init__(self, encoder_args, input_shapes, seed, training_state):

@@ -51,8 +51,12 @@ def HGN_organize_data(img_path, script_path, model_type):
     img_files = [f for f in listdir(img_path) if isfile(join(img_path, f))]
     script_files = [f for f in listdir(script_path) if isfile(join(script_path, f))]
 
+    print('Loading image..')
     total_images = dict()
+    n = 0
     for f in img_files:
+        n += 1
+        print('Loading {}/{}'.format(n, len(img_files)))
         tmp_img = io.imread(('%s/%s') % (img_path, f))
         tmp_img = resize(tmp_img, [img_resize, img_resize], preserve_range=True)
         tmp_img = tmp_img / 255.0
@@ -62,9 +66,13 @@ def HGN_organize_data(img_path, script_path, model_type):
             total_images[int(f[0:4])] = tmp_img
         else:
             raise ValueError('Unsupported model type')
-
+    
+    print('Loading heatmap..')
     total_heatmaps = dict()
+    n = 0
     for f in script_files:
+        n += 1
+        print('Loading {}/{}'.format(n, len(script_files)))
         npzfile = np.load(('%s/%s') % (script_path, f))
         tmp_heatmap = npzfile['arr_0']
         tmp_heatmap = resize(tmp_heatmap, [heatmap_resize, heatmap_resize], preserve_range=True)

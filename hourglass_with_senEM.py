@@ -75,7 +75,7 @@ def createModel(curr_img, curr_speech, img_size, num_hg_Depth, dim_hg_feat, dim_
 
     curr_senEM_encoder = senEM_encoder_w_connection(img_size=img_size, hg_depth=num_hg_Depth, senEM=senEM,
                                                     dim_embedded_output=dim_embedded_output)
-    senEM_output = curr_senEM_encoder.encode(curr_speech)
+    senEM_output, senEM_encoder = curr_senEM_encoder.encode(curr_speech)
 
     with vs.variable_scope('HGN', reuse=tf.AUTO_REUSE):
         with vs.variable_scope('pre'):
@@ -107,7 +107,7 @@ def createModel(curr_img, curr_speech, img_size, num_hg_Depth, dim_hg_feat, dim_
             Out = tf.layers.conv2d(ll, filters=dim_output, kernel_size=1, strides=1, padding='Same')
             Out = tf.layers.dropout(Out, rate=dr_rate) if training_state else Out
     
-    return Out
+    return Out, senEM_encoder
 
 class senEM_encoder_w_connection:
     def __init__(self, img_size, hg_depth, senEM, dim_embedded_output):
@@ -119,8 +119,7 @@ class senEM_encoder_w_connection:
         with tf.variable_scope('HGN/hg/speech_weights', reuse=tf.AUTO_REUSE):
             for i in range(hg_depth):
                 exec('self.W_o%d = tf.get_variable('"'W_o%d'"', dtype=tf.float32,\
-                                        initializer=tf.random_normal([8, \
-                                                    self.dim_embedded_output[1], \
+                                        initializer=tf.random_normal([self.dim_embedded_output[1], \
                                                     int((self.img_size/(2**(self.hg_depth+1-%d)))**2)],  \
                                                     stddev=stddev))' % (i+1, i+1, i+1))
                 exec('self.b_o%d = tf.get_variable('"'b_o%d'"', dtype=tf.float32,\
@@ -131,4 +130,4 @@ class senEM_encoder_w_connection:
         senEM_model = self.senEM.encoder_model
         embedded_outputs = senEM_model(x)
 
-        return embedded_outputs
+        return embedded_outputs, senEM_model

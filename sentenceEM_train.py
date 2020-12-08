@@ -14,12 +14,12 @@ import wandb
 #####################
 
 train_model_number = 'SOTA'
-batch_size = 36; seed = 1; lr = 0.0005; epochs = 500
+batch_size = 36; seed = 1; lr = 0.0005; epochs = 300
 n_mels = 40
 time_steps = 303
 word_dic_size = 43
 dropout_rate = 0.2
-training_state = True
+training_state = True # 'False' when evaluating
 input_shapes = (None, n_mels, time_steps)
 encoder_args = {'num_stacks': 3, 'num_channels':[n_mels for i in range(6)], 'kernel_size':3,
                 'dropout_rate': dropout_rate, 'activation': 'leaky-relu', 'return_type': 'end'}
@@ -52,8 +52,8 @@ wandb_config = {'batch_size':batch_size,
                 'memo': 'init std=0.1, Dropout_rate: 0.2',
                 'model type': 'modified model(only linguistic)'}
 wandb_run = wandb.init(project='Speech2Pickup', name='sentenceEM', config=wandb_config)
-total_model_file_path = '/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/' + str(train_model_number) + '/total_model/model.ckpt'
-encoder_model_file_path = '/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/' + str(train_model_number) + '/encoder_model/model.ckpt'
+total_model_file_path = '/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/' + str(train_model_number) + '/total_model/sentenceEM_total_model'
+encoder_model_file_path = '/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/' + str(train_model_number) + '/encoder_model/sentenceEM_encoder_model'
 model_configuration_file = '/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/' + str(train_model_number) + '/model_config.txt'
 relative_data_directory_path = '/content/drive/MyDrive/Speech2Pickup/data_v2.2_single_channel'
 
@@ -96,8 +96,13 @@ wandb_run.finish()
 ################
 # model compiling should be done first
 
-model_path = '/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/' + str(train_model_number) + '/total_model/sentenceEM_total_model'
-sen_em_model.model.load_weights(model_path)
+# Load total model
+total_model_file_path = '/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/' + str(train_model_number) + '/total_model/sentenceEM_total_model'
+sen_em_model.load_total_model(total_model_file_path)
+
+# # Load encoder model (done when encoder model is only needed)
+# encoder_model_file_path = '/content/drive/MyDrive/Speech2Pickup/sentenceEM_model/' + str(train_model_number) + '/encoder_model/sentenceEM_encoder_model'
+# sen_em_model.load_encoder_model(total_model_file_path)
 
 
 
@@ -114,73 +119,94 @@ relative_script_directory_path = './drive/MyDrive/Speech2Pickup/train_script'
 word_dic, word_dic_size = make_word_dictionary(relative_script_directory_path)
 
 # Load data
-print('Loading data..')
+# Check output of loaded model
+
+import matplotlib.pyplot as plt
+import librosa.display
+import time
+
 relative_data_directory_path = '/content/drive/MyDrive/Speech2Pickup/data_v2.2_single_channel'
 file_name = 'senEM_preprocessed.npz'
-n_data = 30988  # Select n_data between 0~40697
+
+# See result for random 5 datas
+count = 0
+n_datas = np.random.randint(0, 40698, 5)
 data = load_single_npz_data(relative_data_directory_path=relative_data_directory_path, file_name=file_name)
-acoustic_train_batch = [data['acoustic'][n_data]]
-linguistic_train_batch = [data['linguistic'][n_data]]
-acoustic_train_batch = np.array(acoustic_train_batch, dtype=np.float32)
-linguistic_train_batch = np.array(linguistic_train_batch, dtype=np.float32)
+for n_data in n_datas:
+    count += 1
+    acoustic_train_batch = [data['acoustic'][n_data]]
+    linguistic_train_batch = [data['linguistic'][n_data]]
+    acoustic_train_batch = np.array(acoustic_train_batch, dtype=np.float32)
+    linguistic_train_batch = np.array(linguistic_train_batch, dtype=np.float32)
 
-# Get model output
-print('='*20)
-print('Model output')
-with tf.device('/device:GPU:0'):
-    l_out_full = sen_em_model.model(acoustic_train_batch)
+    s_time = time.time()
+    with tf.device('/device:GPU:0'):
+        l_out_full = sen_em_model.model(acoustic_train_batch)
+    e_time = time.time()
+    print('Model reference time: {}'.format(e_time-s_time))
 
-l_out_full = np.squeeze(kb.eval(l_out_full))
-l_true = np.squeeze(linguistic_train_batch)
-l_out = np.argmax(l_out_full, axis=0)
-l_true = np.argmax(l_true, axis=0)
+    l_out_full = np.squeeze(kb.eval(l_out_full))
+    l_true = np.squeeze(linguistic_train_batch)
 
-# Get the ground truth and predicted sentence
-true_sentence = []
-predicted_sentence = []
-word_dic_keys = list(word_dic.keys())
-n = 0
-for i in l_true:
-  if n==0:
-    true_sentence.append(word_dic_keys[i])
-  elif true_sentence[-1] != word_dic_keys[i]:
-    true_sentence.append(word_dic_keys[i])
-  n += 1
-n = 0
-for i in l_out:
-  if n==0:
-    predicted_sentence.append(word_dic_keys[i])
-  elif predicted_sentence[-1] != word_dic_keys[i]:
-    predicted_sentence.append(word_dic_keys[i])
-  n += 1
-true_sentence = ' '.join(true_sentence)
-predicted_sentence = ' '.join(predicted_sentence)
-print('True: {}'.format(true_sentence))
-print('Predict: {}'.format(predicted_sentence))
+    l_out = np.argmax(l_out_full, axis=0)
+    l_true = np.argmax(l_true, axis=0)
 
-# Plot the ground truth and predicted sentence (one-hot encoded)
-fig, ax = plt.subplots(1)
-ax.plot(l_out, label='prediction')
-ax.plot(l_true, label='ground truth')
-ax.set_title('Linguistic feature')
-ax.set_xlabel('Time step')
-ax.set_ylabel('Freq')
-plt.legend()
-plt.show()
+    s_time = time.time()
+    true_sentence = []
+    predicted_sentence = []
+    word_dic_keys = list(word_dic.keys())
+    n = 0
+    for i in l_true:
+        if n==0:
+            true_sentence.append(word_dic_keys[i])
+        elif true_sentence[-1] != word_dic_keys[i]:
+            true_sentence.append(word_dic_keys[i])
+        n += 1
+    n = 0
+    for i in l_out:
+        if n==0:
+            predicted_sentence.append(word_dic_keys[i])
+        elif predicted_sentence[-1] != word_dic_keys[i]:
+            predicted_sentence.append(word_dic_keys[i])
+        n += 1
+    true_sentence = ' '.join(true_sentence)
+    predicted_sentence = ' '.join(predicted_sentence)
+    e_time = time.time()
+    print('True: {}'.format(true_sentence))
+    print('Predict: {}'.format(predicted_sentence))
+    print('Sentence reconstruction time: {}'.format(e_time-s_time))
 
-# Plot the ground truth and model output
-fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(25, 10))
-ax[0].imshow(data['linguistic'][n_data])
-ax[1].imshow(l_out_full)
+    fig, ax = plt.subplots(1)
+    ax.plot(l_out, label='prediction')
+    ax.plot(l_true, label='ground truth')
+    ax.set_title('Linguistic feature')
+    ax.set_xlabel('Time step')
+    ax.set_ylabel('Freq')
+    plt.legend()
+    file_name = str(count) + '_wordplot.png'
+    file_name = '/content/drive/MyDrive/Speech2Pickup/result/sentenceEM/' + file_name
+    plt.savefig(file_name)
+    plt.show()
 
-# Get encoder model output
-print('='*20)
-print('Encoder model output')
-with tf.device('/device:GPU:0'):
-    l_out_embedding = sen_em_model.encoder_model(acoustic_train_batch)
+    # Draw contour
+    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(25, 10))
+    ax[0].imshow(data['linguistic'][n_data])
+    ax[0].set_title(true_sentence + '(ground truth)')
+    ax[1].imshow(l_out_full)
+    ax[1].set_title(predicted_sentence + '(prediction)')
+    file_name = str(count) + '_modeloutput.png'
+    file_name = '/content/drive/MyDrive/Speech2Pickup/result/sentenceEM/' + file_name
+    plt.savefig(file_name)
+    plt.show()
 
-l_out_embedding = np.squeeze(kb.eval(l_out_embedding))
-print(l_out_embedding)
+    # Get encoder model output
+    print('='*20)
+    print('Encoder model output')
+    with tf.device('/device:GPU:0'):
+        l_out_embedding = sen_em_model.encoder_model(acoustic_train_batch)
+
+    l_out_embedding = np.squeeze(kb.eval(l_out_embedding))
+    print(l_out_embedding)
 
 
 

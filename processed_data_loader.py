@@ -113,9 +113,10 @@ def make_word_dictionary(relative_script_directory_path):
 # relative_data_directory_path = './data/data_v2.0'
 # load_data(relative_data_directory_path)
 
-# # Load data_v2.1 (total data)
-# relative_data_directory_path = './data/data_v2.1'
-# load_data(relative_data_directory_path, 'pickle')
+# Load data_v2.1 (single data)
+relative_data_directory_path = './data/data_v2.1'
+data = load_single_data(relative_data_directory_path, 'senEM_preprocessed_1.pkl')
+print(len(data[0]))
 
 # # Load data_v2.1 (total data)
 # relative_data_directory_path = './data/data_v2.2'

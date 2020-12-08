@@ -11,10 +11,49 @@ import librosa
 import numpy as np
 import pickle
 
+def text_to_speech_for_model_test(sentence, voice_config):
+    """
+    voice_config[0]: english type (en-US/en-GB)  # en-US: USA, en-GB: England
+    voice_config[1]: person gender (MALE/FEMALE)
+    """
+    client = texttospeech.TextToSpeechClient()  # Instantiates a text-to-speech client
+    wav_file_name = 'output.wav'
+
+    # Set the text input to be synthesized
+    synthesis_input = texttospeech.SynthesisInput(text=sentence)
+
+    # Build the voice request, select the language code and the ssml
+    if voice_config['gender'] == 'MALE':
+        voice = texttospeech.VoiceSelectionParams(
+            language_code=voice_config['accent'], ssml_gender=texttospeech.SsmlVoiceGender.MALE
+        )
+    elif voice_config['gender'] == 'FEMALE':
+        voice = texttospeech.VoiceSelectionParams(
+            language_code=voice_config['accent'], ssml_gender=texttospeech.SsmlVoiceGender.FEMALE
+        )
+    else:
+        raise ValueError('Unavailable voice configuration')
+
+    # Select the type of audio file (LINEAR16: .wav)
+    audio_config = texttospeech.AudioConfig(
+        audio_encoding=texttospeech.AudioEncoding.LINEAR16
+    )
+
+    # Perform the text-to-speech request on the text input with the selected
+    # voice parameters and audio file type
+    response = client.synthesize_speech(
+        input=synthesis_input, voice=voice, audio_config=audio_config
+    )
+
+    # Write the response to the output file.
+    # The response's audio_content is binary.
+    with open(wav_file_name, "wb") as f:
+        f.write(response.audio_content)
+
 def text_to_speech(client, sentence, voice_config, voice_file_name_config, case_config):
     """
     voice_config[0]: english type (en-US/en-GB)  # en-US: USA, en-GB: England
-    voice_config[1]: person sex (MALE/FEMALE)
+    voice_config[1]: person gender (MALE/FEMALE)
     """
     # Set directory to save audio file and name audio file
     dir_name = 'data/train_speech/{}'.format(case_config)
@@ -51,8 +90,8 @@ def text_to_speech(client, sentence, voice_config, voice_file_name_config, case_
 
     # Write the response to the output file.
     # The response's audio_content is binary.
-    with open(wav_file_name, "wb") as out:
-        out.write(response.audio_content)
+    with open(wav_file_name, "wb") as f:
+        f.write(response.audio_content)
 
 def text_to_speech_preprocess():
     # Read text data file list

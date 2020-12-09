@@ -28,9 +28,7 @@ def session_run(result_heatmap, ph_image, ph_speech, ph_dropout,
                 restore_path, curr_test_img, curr_speech, dropout_rate):
     init = tf.global_variables_initializer()
     
-    HGN_vars = [v for v in tf.trainable_variables()]    
-
-    saver = tf.train.Saver(var_list = HGN_vars)
+    saver = tf.train.Saver()
 
     config = tf.ConfigProto()
     config.allow_soft_placement = True

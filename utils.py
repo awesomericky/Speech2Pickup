@@ -229,10 +229,10 @@ def load_test_script(curr_test_input, w2v_model, dim_sentence, max_step_sentence
     
     return curr_embed_input, curr_seq_len
 
-def plot_HGN_result(curr_test_input, curr_test_img, mean_of_esti, uncertainty, bound_u=0.0, bound_c=0.0):
+def plot_HGN_result(curr_test_input, curr_test_img, mean_of_esti, uncertainty, save_state, save_path, bound_u=0.0, bound_c=0.0):
     fig = plt.figure(figsize=(10, 10))
     fig.subplots_adjust(hspace=0.2, wspace=0.3)
-    fig.suptitle('Input script: ' + curr_test_input, size=30)
+    suptitle = fig.suptitle('Input script: ' + curr_test_input, fontsize=20)
 
     ax1 = fig.add_subplot(2, 2, 1)
     ax1.imshow(resize(curr_test_img[0, :, :, :], [256, 256], preserve_range=True))
@@ -274,6 +274,9 @@ def plot_HGN_result(curr_test_input, curr_test_img, mean_of_esti, uncertainty, b
     divider4 = make_axes_locatable(ax4)
     cax4 = divider4.append_axes("right", size="5%", pad=0.05)
     plt.colorbar(plot4, ax=ax4, cax=cax4)
+
+    if save_state == True:
+        plt.savefig(save_path, bbox_extra_artists=(suptitle,))
  
 #############################
 ### Added to original file ##

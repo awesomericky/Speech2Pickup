@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 import random
 import time
+import wandb
 from hourglass_with_rnn import createModel
 
 def train(img_resize, heatmap_resize, dim_sentence, max_step_sentence,
@@ -10,9 +11,9 @@ def train(img_resize, heatmap_resize, dim_sentence, max_step_sentence,
           restore_flag, restore_path, restore_epoch,
           total_images, total_heatmaps,
           train_text_inputs, train_sen_len, train_img_idx, train_pos_outputs,
-          learning_rate):
+          learning_rate, model_save_path):
     
-    num_batch = num_train / batch_size
+    num_batch = num_train // batch_size
     
     ph_image = tf.placeholder(dtype=tf.float32, shape=[None, img_resize, img_resize, 3])
     ph_sen = tf.placeholder(dtype=tf.float32, shape=[None, dim_sentence, max_step_sentence])
@@ -30,15 +31,14 @@ def train(img_resize, heatmap_resize, dim_sentence, max_step_sentence,
                                  dim_hg_feat=dim_hg_feat,
                                  dim_rnn_cell=dim_rnn_cell,
                                  dim_output=1,
-                                 dr_rate=ph_dropout,
-                                )
+                                 dr_rate=ph_dropout)
     loss = tf.reduce_mean((result_heatmap-ph_heatmap)**2)
     
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
 
     init = tf.global_variables_initializer()
 
-    saver = tf.train.Saver(var_list=tf.trainable_variables())
+    saver = tf.train.Saver()
     
     config = tf.ConfigProto()
     config.allow_soft_placement = True
@@ -54,7 +54,7 @@ def train(img_resize, heatmap_resize, dim_sentence, max_step_sentence,
 
         for _epoch in range(max_epoch-restore_epoch):
             random.seed(_epoch)
-            batch_shuffle = range(num_train)
+            batch_shuffle = [i for i in range(num_train)]
             random.shuffle(batch_shuffle)
 
             total_train_loss = 0.0
@@ -96,12 +96,14 @@ def train(img_resize, heatmap_resize, dim_sentence, max_step_sentence,
                 if i % 100 == 0:
                     print("batch loss : %s -> about %0.3f second left to finish this epoch" 
                           % (curr_train_loss, (total_time/(i+1))*(num_batch-i) ))
+                    wandb.log({'Batch train loss': curr_train_loss})
 
             total_train_loss = total_train_loss / num_batch
 
             print('current epoch : ' + str(_epoch+1+restore_epoch), 
-                  ', current train loss : ' + str(total_train_loss)) 
+                  ', current train loss : ' + str(total_train_loss))
+            wandb.log({'Epoch train loss': total_train_loss})
+
             if (_epoch+1+restore_epoch) % save_stride == 0:
-                model_save_path = saver.save(sess, './trained_HGN/model.ckpt', 
-                                             global_step=_epoch+1+restore_epoch)
-                print("Model saved in file : %s" % model_save_path)
+                model_saved_path = saver.save(sess, model_save_path)
+                print("Model saved in file : %s" % model_saved_path)

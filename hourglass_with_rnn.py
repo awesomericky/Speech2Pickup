@@ -19,10 +19,32 @@ def hourglass_with_rnn(curr_input, rnn_feat, numDepth, numIn, numOut, dr_rate):
     low3 = Residual(low2, numIn, numOut-1, dr_rate)
     
     with tf.variable_scope("word_weights", reuse=True):
-        exec('_W_o%d = tf.get_variable('"'W_o%d'"')' % (numDepth, numDepth))
-        exec('_b_o%d = tf.get_variable('"'b_o%d'"')' % (numDepth, numDepth))
+        if numDepth == 4:
+            _W_o4 = tf.get_variable('W_o4')
+            _b_o4 = tf.get_variable('b_o4')
+        elif numDepth == 3:
+            _W_o3 = tf.get_variable('W_o3')
+            _b_o3 = tf.get_variable('b_o3')
+        elif numDepth == 2:
+            _W_o2 = tf.get_variable('W_o2')
+            _b_o2 = tf.get_variable('b_o2')
+        elif numDepth == 1:
+            _W_o1 = tf.get_variable('W_o1')
+            _b_o1 = tf.get_variable('b_o1')
+        else:
+            raise ValueError('Code need to be fixed due to changed numDepth')
     
-    exec('fitted_rnn = tf.matmul(rnn_feat, _W_o%d)+_b_o%d' % (numDepth, numDepth))  
+    if numDepth == 4:
+        fitted_rnn = tf.matmul(rnn_feat, _W_o4)+_b_o4
+    elif numDepth == 3:
+        fitted_rnn = tf.matmul(rnn_feat, _W_o3)+_b_o3
+    elif numDepth == 2:
+        fitted_rnn = tf.matmul(rnn_feat, _W_o2)+_b_o2
+    elif numDepth == 1:
+        fitted_rnn = tf.matmul(rnn_feat, _W_o1)+_b_o1
+    else:
+        raise ValueError('Code need to be fixed due to changed numDepth')
+
     fitted_rnn = tf.nn.dropout(fitted_rnn, 1-dr_rate)
     
     fitted_rnn = tf.reshape(fitted_rnn, [tf.shape(rnn_feat)[0], 
@@ -47,8 +69,8 @@ def lin(curr_input, numIn, numOut, dr_rate):
 def createModel(curr_img, curr_sen, curr_sen_len,
                 img_size, dim_sentence, max_step_sentence, 
                 num_hg_Depth, dim_hg_feat, dim_rnn_cell, dim_output,
-                dr_rate
-                ):
+                dr_rate):
+
     # image size must be 256 by 256.
     curr_rnn_encoder= rnn_encoder(img_size, num_hg_Depth, dim_sentence, max_step_sentence, dim_rnn_cell, dr_rate)
     
@@ -100,12 +122,11 @@ class rnn_encoder(object):
             for i in range(hg_depth):
                 exec('self.W_o%d = tf.get_variable('"'W_o%d'"', dtype=tf.float32,\
                                         initializer=tf.random_normal([self.dim_rnn_cell, \
-                                                    (self.img_size/(2**(self.hg_depth+1-%d)))**2], \
+                                                    int((self.img_size/(2**(self.hg_depth+1-%d)))**2)], \
                                                     stddev=stddev))' % (i+1, i+1, i+1))
                 exec('self.b_o%d = tf.get_variable('"'b_o%d'"', dtype=tf.float32,\
-                                       initializer=tf.random_normal([(self.img_size/(2**(self.hg_depth+1-%d)))**2], \
-                                                                     stddev=stddev))' 
-                                                                     % (i+1, i+1, i+1))
+                                       initializer=tf.random_normal([int((self.img_size/(2**(self.hg_depth+1-%d)))**2)], \
+                                                                     stddev=stddev))' % (i+1, i+1, i+1))
     def encode(self, _x, _sen_len):
         _x_split = tf.transpose(_x, [2, 0, 1])
         _x_split = tf.reshape(_x_split, [-1, self.dim_sentence])

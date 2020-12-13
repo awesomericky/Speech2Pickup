@@ -13,7 +13,7 @@ import pickle
 
 def text_to_speech_for_model_test(sentence, voice_config):
     client = texttospeech.TextToSpeechClient()  # Instantiates a text-to-speech client
-    wav_file_name = 'random_speech/output.wav'
+    wav_file_name = 'data/random_speech/output.wav'
 
     # Set the text input to be synthesized
     synthesis_input = texttospeech.SynthesisInput(text=sentence)
@@ -139,6 +139,6 @@ def text_to_speech_preprocess():
 # # Changing text to speech
 # text_to_speech_preprocess()
 
-sentence = 'Could you give the green one'
-voice_config = {'gender': 'FEMALE', 'accent': 'en-US'}
+sentence = 'Pick red one in the left'
+voice_config = {'gender': 'MALE', 'accent': 'en-US'}
 text_to_speech_for_model_test(sentence, voice_config)

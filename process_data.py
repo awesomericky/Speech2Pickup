@@ -5,6 +5,7 @@ from os.path import join, isfile, isdir
 import pickle
 from processed_data_loader import load_single_data
 from utils import read_script_files, read_script_file_data
+from scipy.io.wavfile import write
 
 def audio_length_equalize_and_save(relative_data_directory_path, relative_save_data_directory_path):
     data_type = relative_data_directory_path.split('/')[-1]
@@ -179,6 +180,29 @@ def save_single_data(relative_save_data_directory_path, data, save_file_num, dat
             raise ValueError('Unavailable data directory path for saving data')
     return True
 
+def add_noise(audio_file, noise_file):
+    audio, _ = librosa.load(audio_file, sr=24000)
+    noise, _ = librosa.load(noise_file, sr=24000)
+
+    audio = noise[24000:24000+len(audio)]*4 + audio
+    file_name = join('./data/random_speech/test_data_w_noise', audio_file.split('/')[-1])
+    write(file_name, 24000, audio)
+    return True
+
+def add_noise_total_data(data_file, noise_file):
+    audio_files = [f for f in listdir(data_file) if isfile(join(data_file, f))]
+    count = 0
+    for audio_file in audio_files:
+        count += 1
+        print('Processing {}/{}'.format(count, len(audio_files)))
+        add_noise(join(data_file, audio_file), noise_file)
+
+
 # # Check make_word_dictionary()
 # relative_script_directory_path = './data/train_script'
 # make_word_dictionary(relative_script_directory_path)
+
+# # Add noise
+# data_file = './data/random_speech/test_data'
+# noise_file = './data/random_speech/noise.wav'
+# add_noise_total_data(data_file, noise_file)

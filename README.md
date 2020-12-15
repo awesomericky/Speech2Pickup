@@ -1,5 +1,5 @@
 # Speech2Pickup
-Interactive Speech2Pickup Network for Speech based Human-Robot Collaboration
+Interactive Speech2Pickup Network for Speech based Human-Robot Interaction
 
 ## Proposed model
 <div>
@@ -33,3 +33,13 @@ Interactive Speech2Pickup Network for Speech based Human-Robot Collaboration
 <div>
   <img width=700 src='https://user-images.githubusercontent.com/58288696/102178024-04468f80-3ee8-11eb-8b69-eb26e3cc8b39.png'>
 </div>
+
+## Reference
+[1] Hyemin Ahn, Sungjoon Choi, Nuri Kim, Geonho Cha, and Songhwai Oh. 2018. Interactive Text2Pickup Networks for Natural Language-Based Human--Robot Collaboration. IEEE Robotics and Automation Letters 3, 4 (2018), 3308—3315.
+https://arxiv.org/abs/1805.10799
+[2] Y.-A. Chung and J. Glass, “Speech2Vec: A sequence-to-sequence framework for learning word embeddings from speech,” in Proc. Interspeech, 2018, pp. 811–815
+https://arxiv.org/abs/1803.08976
+[3] A. Haque, M. Guo, P. Verma, and L. Fei-Fei, “Audio-linguistic embeddings for spoken sentences,” in Proc. ICASSP, 2019.
+https://arxiv.org/abs/1902.07817
+[4] 'Interactive Text2Pickup Networks' implementation
+https://github.com/hiddenmaze/InteractivePickup

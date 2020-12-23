@@ -1,8 +1,10 @@
 import numpy as np
 from os.path import join
+import os
 from text_to_speech import text_to_speech_for_model_test
 from speech_to_text import speech_to_text_for_model_test
 from process_data import add_noise
+import time
 
 
 ########################
@@ -60,6 +62,37 @@ def test_wo_noise():
     print('STT accuracy: {}%'.format(accuracy))
     print(STT_error_data)
     np.savez_compressed('./data/ASR_text2pickup_evaluate', img_idxs=np.asarray(img_idxs), pos_outputs=np.asarray(pos_outputs), real_text_inputs=real_text_inputs, STT_text_inputs=STT_text_inputs)
+
+
+
+
+
+
+
+################################
+## Check model inference time ##
+################################
+
+total_num_data = len(os.listdir('./data/random_speech/test_data'))
+times = []
+
+for i in range(total_num_data):
+    print('Processing {}/{}'.format(i+1, total_num_data))
+    file_name = './data/random_speech/test_data/{}.wav'.format(i+1)
+    start = time.time()
+    STT_text_input = speech_to_text_for_model_test(audio_path=file_name)
+    STT_text_input = STT_text_input.lower()
+    end = time.time()
+
+    inter_time = end - start
+    times.append(inter_time)
+
+times = np.asarray(times)
+np.savez_compressed('./data/ASR_STT_time_evaluate', times=times)
+
+
+
+
 
 
             

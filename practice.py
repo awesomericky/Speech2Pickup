@@ -206,4 +206,31 @@ def mfcc_similairty(relative_file_directory1, file_name1, relative_file_director
 # image = mpimg.imread(image_file)
 # print(image.shape)
 # print(image[:,100,2])
-    
+
+from process_data import return_mel_spec_single_channel
+import random
+import time
+
+test_data = os.listdir('./data/random_speech/test_data')
+random.shuffle(test_data)
+
+test_data = test_data[:6]
+times = []
+sr = 16000
+n_fft = 2048
+hop_length = int(n_fft/8)
+win_length = int(n_fft/2)
+
+for data in test_data:
+    full_file_path = os.path.join('./data/random_speech/test_data', data)
+    audio_data, audio_sr = librosa.load(full_file_path, sr=sr)
+
+    start = time.time()
+    _ = return_mel_spec_single_channel(audio_data, audio_sr, n_fft, hop_length, win_length, n_mels=40)
+    end = time.time()
+    inter_time = end - start
+    times.append(inter_time)
+
+times = np.asarray(times)
+mean = np.average(times[1:])
+print(mean)

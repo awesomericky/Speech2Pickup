@@ -5,7 +5,7 @@ https://drive.google.com/file/d/1zwe1mXaTXbnal-RNcGEmDALSKrbw6CAp/view?usp=shari
 
 ## Proposed model
 <div>
-  <img width=500 src='https://user-images.githubusercontent.com/58288696/102177354-b8471b00-3ee6-11eb-95b6-f018025b8a7d.PNG'>
+  <img width=300 src='https://user-images.githubusercontent.com/58288696/102987588-eb785280-4555-11eb-92c7-c4a5376e0c5d.png'>
 </div>
 
 ## Dataset
@@ -15,13 +15,13 @@ https://drive.google.com/file/d/1zwe1mXaTXbnal-RNcGEmDALSKrbw6CAp/view?usp=shari
 
 ## Experiment
 <div>
-  <img width=600 src='https://user-images.githubusercontent.com/58288696/102176528-eaf01400-3ee4-11eb-89a5-e7c986ab838d.png'>
+  <img width=600 src='https://user-images.githubusercontent.com/58288696/102987950-8a04b380-4556-11eb-82e4-ffe14b7038c9.png'>
 </div>
 
 ## Result
-### 1. Model accuracy
+### 1. Prediction accuracy & Time efficiency
 <div>
-  <img width=400 src='https://user-images.githubusercontent.com/58288696/102177647-4fac6e00-3ee7-11eb-86e1-72492b809d46.png'>
+  <img width=600 src='https://user-images.githubusercontent.com/58288696/102987693-15ca1000-4556-11eb-8008-9db310912a6c.png'>
 </div>
 
 ### 2. Model prediction example

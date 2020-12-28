@@ -217,16 +217,19 @@ random.shuffle(test_data)
 test_data = test_data[:6]
 times = []
 sr = 16000
+max_audio_len = 77520
 n_fft = 2048
 hop_length = int(n_fft/8)
 win_length = int(n_fft/2)
 
 for data in test_data:
     full_file_path = os.path.join('./data/random_speech/test_data', data)
-    audio_data, audio_sr = librosa.load(full_file_path, sr=sr)
 
+    # start = time.time()
+    sampled_audio, audio_sr = librosa.load(full_file_path, sr=sr)
     start = time.time()
-    _ = return_mel_spec_single_channel(audio_data, audio_sr, n_fft, hop_length, win_length, n_mels=40)
+    sampled_audio = np.append(sampled_audio, [0]*(max_audio_len-sampled_audio.shape[0]))
+    _ = return_mel_spec_single_channel(sampled_audio, audio_sr, n_fft, hop_length, win_length, n_mels=40)
     end = time.time()
     inter_time = end - start
     times.append(inter_time)

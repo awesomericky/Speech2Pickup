@@ -7,11 +7,11 @@ from process_data import add_noise
 import time
 
 
-########################
-## Test without noise ##
-########################
+#################################################
+## Test without noise (Using Google Cloud API) ##
+#################################################
 
-def test_wo_noise():
+def test_wo_noise_google():
     script_dir_path = './data/train_script'
     npzfile = np.load('./data/divide_img_idx.npz')
     test_img_idx = npzfile['arr_1']
@@ -62,8 +62,6 @@ def test_wo_noise():
     print('STT accuracy: {}%'.format(accuracy))
     print(STT_error_data)
     np.savez_compressed('./data/ASR_text2pickup_evaluate', img_idxs=np.asarray(img_idxs), pos_outputs=np.asarray(pos_outputs), real_text_inputs=real_text_inputs, STT_text_inputs=STT_text_inputs)
-
-
 
 
 

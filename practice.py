@@ -207,33 +207,57 @@ def mfcc_similairty(relative_file_directory1, file_name1, relative_file_director
 # print(image.shape)
 # print(image[:,100,2])
 
-from process_data import return_mel_spec_single_channel
-import random
+
+
+# from process_data import return_mel_spec_single_channel
+# import random
+# import time
+
+# test_data = os.listdir('./data/random_speech/test_data')
+# random.shuffle(test_data)
+
+# test_data = test_data[:6]
+# times = []
+# sr = 16000
+# max_audio_len = 77520
+# n_fft = 2048
+# hop_length = int(n_fft/8)
+# win_length = int(n_fft/2)
+
+# for data in test_data:
+#     full_file_path = os.path.join('./data/random_speech/test_data', data)
+
+#     # start = time.time()
+#     sampled_audio, audio_sr = librosa.load(full_file_path, sr=sr)
+#     start = time.time()
+#     sampled_audio = np.append(sampled_audio, [0]*(max_audio_len-sampled_audio.shape[0]))
+#     _ = return_mel_spec_single_channel(sampled_audio, audio_sr, n_fft, hop_length, win_length, n_mels=40)
+#     end = time.time()
+#     inter_time = end - start
+#     times.append(inter_time)
+
+# times = np.asarray(times)
+# mean = np.average(times[1:])
+# print(mean)
+
 import time
 
 test_data = os.listdir('./data/random_speech/test_data')
-random.shuffle(test_data)
 
 test_data = test_data[:6]
 times = []
 sr = 16000
-max_audio_len = 77520
-n_fft = 2048
-hop_length = int(n_fft/8)
-win_length = int(n_fft/2)
 
 for data in test_data:
     full_file_path = os.path.join('./data/random_speech/test_data', data)
 
-    # start = time.time()
-    sampled_audio, audio_sr = librosa.load(full_file_path, sr=sr)
     start = time.time()
-    sampled_audio = np.append(sampled_audio, [0]*(max_audio_len-sampled_audio.shape[0]))
-    _ = return_mel_spec_single_channel(sampled_audio, audio_sr, n_fft, hop_length, win_length, n_mels=40)
+    sampled_audio, audio_sr = librosa.load(full_file_path, sr=sr)
     end = time.time()
-    inter_time = end - start
-    times.append(inter_time)
+    times.append(end-start)
 
 times = np.asarray(times)
-mean = np.average(times[1:])
-print(mean)
+Q1 = np.percentile(times, 25)
+Q2 = np.percentile(times, 50)
+Q3 = np.percentile(times, 75)
+print('Q1: {}, Q2: {}, Q3: {}'.format(Q1, Q2, Q3))

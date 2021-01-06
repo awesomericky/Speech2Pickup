@@ -11,7 +11,7 @@ import librosa
 import numpy as np
 import pickle
 
-def text_to_speech_for_model_test(sentence, voice_config, file_path='data/random_speech/output.wav'):
+def text_to_speech_for_model_test(sentence, voice_config, file_path='output.wav'):
     client = texttospeech.TextToSpeechClient()  # Instantiates a text-to-speech client
     wav_file_name = file_path
 
@@ -140,6 +140,6 @@ def text_to_speech_preprocess():
 # # Changing text to speech
 # text_to_speech_preprocess()
 
-sentence = 'pick up the upper blue block'
-voice_config = {'gender': 'FEMALE', 'accent': 'en-US'}
+sentence = 'pick up the block on the top right'
+voice_config = {'gender': 'FEMALE', 'accent': 'en-AS'}
 text_to_speech_for_model_test(sentence, voice_config)

@@ -221,3 +221,75 @@ def preprocess_text2pickup(start_point, only_test_data=False):
     np.savez_compressed(save_file_name, img_idx=img_idx, seq_len=seq_len, inputs=inputs, outputs=outputs)
 
 # preprocess_text2pickup(start_point=610, only_test_data=False)
+
+# ## Local PC
+
+# json_train_path = './data/dataset2/en.train.jsonl'
+# json_test_path = './data/dataset2/en.validation.jsonl'
+# word2vec_path = './data/GoogleNews-vectors-negative300.bin'
+# total_word_path = './data/dataset2/total_words.npz'
+# heatmap_train_path = './data/dataset2/heatmap/train'
+# heatmap_test_path = './data/dataset2/heatmap/test'
+# total_data_train_path = './data/dataset2'
+# total_data_test_path = './data/dataset2/preprocessed4text2pickup_test.npz'
+
+
+# en_train_objs = []
+# en_val_objs = []
+
+# with open(json_train_path) as f:
+#     for jsonobj in f:
+#         en_train_obj = json.loads(jsonobj)
+#         en_train_objs.append(en_train_obj)
+
+# with open(json_test_path) as f:
+#     for jsonobj in f:
+#         en_val_obj = json.loads(jsonobj)
+#         en_val_objs.append(en_val_obj)
+
+# ### Calculate Maximum length of the language command
+# train_words = set()
+# test_words = set()
+# max_len = 0
+# num_train_data = 0
+# num_val_data = 0
+# num_data = 0
+# checkpoint = 1
+
+# for en_train_obj in en_train_objs:
+#     des_objects = en_train_obj["objects"]
+#     for des_object in des_objects:
+#         des_instructions = des_object["instructions"]
+#         for des_instruction in des_instructions:
+#             words = des_instruction.split()
+#             for word in words:
+#                 train_words.add(word)
+#             if max_len < len(words):
+#                 max_len = len(words)
+#         num_train_data += len(des_instructions)
+
+# for en_val_obj in en_val_objs:
+#     des_objects = en_val_obj["objects"]
+#     for des_object in des_objects:
+#         des_instructions = des_object["instructions"]
+#         for des_instruction in des_instructions:
+#             words = des_instruction.split()
+#             for word in words:
+#                 test_words.add(word)
+#             if max_len < len(words):
+#                 max_len = len(words)
+#         num_val_data += len(des_instructions)
+
+# num_data = num_train_data + num_val_data
+# train_words = list(train_words)
+# test_words = list(test_words)
+# n = 0
+
+# for word in test_words:
+#     if word not in train_words:
+#         print(word)
+#         n += 1
+# print(len(train_words))
+# print(len(test_words))
+# print(n)
+# print(test_words)

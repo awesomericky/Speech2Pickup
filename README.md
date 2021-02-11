@@ -15,13 +15,13 @@ https://drive.google.com/file/d/1zwe1mXaTXbnal-RNcGEmDALSKrbw6CAp/view?usp=shari
 
 ## Experiment
 <div>
-  <img width=600 src='https://user-images.githubusercontent.com/58288696/102987950-8a04b380-4556-11eb-82e4-ffe14b7038c9.png'>
+  <img width=600 src='https://github.com/awesomericky/Speech2Pickup/image/speech2pickup_experiment.png'>
 </div>
 
 ## Result
 ### 1. Prediction accuracy & Time efficiency
 <div>
-  <img width=600 src='https://user-images.githubusercontent.com/58288696/102987693-15ca1000-4556-11eb-8008-9db310912a6c.png'>
+  <img width=600 src='https://github.com/awesomericky/Speech2Pickup/image/speech2pickup_result.png'>
 </div>
 
 ### 2. Model prediction example

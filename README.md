@@ -1,8 +1,6 @@
 # Speech2Pickup
 Interactive Speech2Pickup Network for Speech based Human-Robot Collaboration
 
-https://drive.google.com/file/d/1zwe1mXaTXbnal-RNcGEmDALSKrbw6CAp/view?usp=sharing (project summary slides)
-
 ## Proposed model
 <div>
   <img width=300 src='https://user-images.githubusercontent.com/58288696/102987588-eb785280-4555-11eb-92c7-c4a5376e0c5d.png'>

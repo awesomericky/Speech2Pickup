@@ -1,6 +1,10 @@
 # Speech2Pickup
-Interactive Speech2Pickup Network for Speech based Human-Robot Collaboration
+We propose Interactive Speech2Pickup Network for Speech based Human-Robot Collaboration. The proposed model takes speech from the person as input, and predicts the desired task specific output. We tested our model on Multi-object Detection task. 
 
+Our proposed method could handle two problems compared to the baseline methods that use ASR(Automatic Speech Recognition) to transfer speech to text, and Text based model to transfer text to task specific output.
+- Error accumulation due to seperated optimization.
+- Time delay due to network based ASR system.
+  
 ## Proposed model
 <div>
   <img width=300 src='https://user-images.githubusercontent.com/58288696/102987588-eb785280-4555-11eb-92c7-c4a5376e0c5d.png'>

@@ -4,6 +4,9 @@ We propose Interactive Speech2Pickup Network for Speech based Human-Robot Collab
 Our proposed method could handle two problems that the baseline methods struggle. (Baseline: Automatic Speech Recognition + Text input based model)
 - Error accumulation due to seperated optimization.
 - Time delay due to network based ASR system.
+
+Extra material:
+- Project slides: https://url.kr/y3bnkp
   
 ## Proposed model
 <div>
